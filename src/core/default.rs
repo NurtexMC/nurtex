@@ -1,14 +1,14 @@
 use std::io::{self, Error, ErrorKind};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use azalea_core::position::Vec3;
+use azalea_core::direction::Direction;
+use azalea_core::position::{BlockPos, Vec3};
 use azalea_entity::LookDirection;
 use azalea_protocol::common::movements::MoveFlags;
 use azalea_protocol::packets::game::s_chat::LastSeenMessagesUpdate;
+use azalea_protocol::packets::game::s_player_action::Action;
 use azalea_protocol::packets::game::{
-  ClientboundGamePacket, ServerboundAcceptTeleportation, ServerboundChat, ServerboundClientCommand,
-  ServerboundGamePacket, ServerboundKeepAlive, ServerboundMovePlayerPos, ServerboundMovePlayerRot,
-  ServerboundPong, ServerboundSwing,
+  ClientboundGamePacket, ServerboundAcceptTeleportation, ServerboundChat, ServerboundClientCommand, ServerboundGamePacket, ServerboundKeepAlive, ServerboundMovePlayerPos, ServerboundMovePlayerRot, ServerboundPlayerAction, ServerboundPong, ServerboundSwing, ServerboundUseItem
 };
 
 use crate::core::bot::Bot;
@@ -185,6 +185,24 @@ async fn process_command(bot: &mut Bot, command: Command) -> io::Result<bool> {
         .write(ServerboundGamePacket::Swing(ServerboundSwing { hand }))
         .await?;
     }
+    Command::StartUseItem(hand) => {
+      let look_direction = bot.components.physics.look_direction;
+
+      conn.write(ServerboundGamePacket::UseItem(ServerboundUseItem {
+        hand: hand,
+        seq: 0,
+        y_rot: look_direction.y_rot(),
+        x_rot: look_direction.x_rot()
+      })).await?;
+    }
+    Command::ReleaseUseItem => {
+      conn.write(ServerboundGamePacket::PlayerAction(ServerboundPlayerAction {
+        action: Action::ReleaseUseItem,
+        pos: BlockPos::new(0, 0, 0),
+        direction: Direction::Down,
+        seq: 0
+      })).await?;
+    }
     Command::SendPacket(packet) => {
       conn.write(packet).await?;
     }
@@ -192,7 +210,6 @@ async fn process_command(bot: &mut Bot, command: Command) -> io::Result<bool> {
       bot.disconnect().await?;
       return Ok(false);
     }
-    _ => {}
   }
 
   Ok(true)

@@ -6,10 +6,11 @@ use tokio::sync::mpsc::Sender;
 #[derive(Clone, Debug)]
 pub enum Command {
   Chat(String),
-  Jump,
   SetDirection { yaw: f32, pitch: f32 },
   SetPosition { x: f64, y: f64, z: f64 },
   SwingArm(InteractionHand),
+  StartUseItem(InteractionHand),
+  ReleaseUseItem,
   SendPacket(ServerboundGamePacket),
   Disconnect,
 }
