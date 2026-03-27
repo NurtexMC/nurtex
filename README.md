@@ -31,9 +31,14 @@ async fn main() -> io::Result<()> {
   // Spawn an asynchronous task.
   tokio::spawn(async move {
     sleep(3000).await; // Wait for the bot to connect.
-    terminal.send(BotCommand::Chat("Hello, world!".to_string())).await; // Send a message to the chat.
+
+    // Send a message to the chat.
+    terminal.send(BotCommand::Chat("Hello, world!".to_string())).await; 
+
     sleep(5000).await; // Wait a little.
-    terminal.send(BotCommand::Disconnect).await; // Disconnect bot.
+
+    // Disconnect bot.
+    terminal.send(BotCommand::Disconnect).await; 
   });
 
   // Connecting bot to the server.
@@ -70,9 +75,14 @@ async fn main() -> io::Result<()> {
   launch_shared_swarm(swarm.clone(), "localhost".to_string(), 25565, 500);
 
   sleep(4000).await; // Waiting for all the bots to connect.
-  swarm.read().await.send(BotCommand::Chat("Hello, world!".to_string())).await; // Send a message to the chat from all bots.
+
+  // Send a message to the chat from all bots.
+  swarm.read().await.send(BotCommand::Chat("Hello, world!".to_string())).await; 
+
   sleep(5000).await; // Wait a little.
-  swarm.write().await.destroy().await; // Clear and destroy swarm.
+
+  // Clear and destroy swarm.
+  swarm.write().await.destroy().await; 
 
   Ok(())
 }
