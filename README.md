@@ -9,7 +9,7 @@ Supported Minecraft version: `1.21.11` (or protocol version - `774`).
 To use this library in your code, add a dependency to the Cargo.toml:
 
 ```
-nurtex = { git = "https://github.com/nullclyze/NurtexMC" }
+nurtex = "0.1.0"
 ```
 
 # Examples
