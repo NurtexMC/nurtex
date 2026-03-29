@@ -9,7 +9,7 @@ Supported Minecraft version: `1.21.11` (or protocol version - `774`).
 To use this library in your code, add a dependency to the Cargo.toml:
 
 ```
-nurtex = "0.1.0"
+nurtex = "0.2.0"
 ```
 
 # Examples
@@ -20,28 +20,34 @@ nurtex = "0.1.0"
 use std::io;
 
 use nurtex::core::bot::Bot;
-use nurtex::utils::sleep;
+use nurtex::core::common::BotCommand;
+use nurtex::core::events::EventHandler;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-  // Creating a bot and its terminal.
-  let (mut bot, terminal) = Bot::new("NurtexBot");
+  // Creating a bot.
+  let bot = Bot::new("NurtexBot");
 
-  // Spawn an asynchronous task.
-  tokio::spawn(async move {
-    sleep(3000).await; // Wait for the bot to connect.
+  // Create an event handler.
+  let mut event_handler = EventHandler::new();
 
-    // Send a message to the chat.
-    terminal.chat("Hello, world!").await; 
-
-    sleep(5000).await; // Wait a little.
-
-    // Disconnect bot.
-    terminal.disconnect().await; 
+  // Сreate a handler for the "spawn" event.
+  event_handler.on_spawn(|terminal| async move {
+    terminal.chat("Hello, world!").await;
   });
 
-  // Connecting bot to the server.
-  bot.connect_to("localhost", 25565).await?;
+  // Сreate a handler for the "chat" event.
+  event_handler.on_chat(|terminal, payload| async move {
+    if payload.message.contains("disconnect") {
+      // Disconnect bot
+      terminal.send(BotCommand::Disconnect).await;
+    }
+  });
+
+  bot
+    .set_event_handler(event_handler) // Set event handler
+    .connect_to("localhost", 25565) // Connect bot to server
+    .await?;
 
   Ok(())
 }
@@ -51,18 +57,19 @@ async fn main() -> io::Result<()> {
 
 ```rust
 use std::io;
+use std::time::Duration;
 
-use nurtex::{create_shared_swarm, launch_shared_swarm};
-use nurtex::core::bot::BotCommand;
+use nurtex::core::common::BotCommand;
 use nurtex::core::swarm::SwarmObject;
 use nurtex::utils::sleep;
+use nurtex::{create_shared_swarm, destroy_shared_swarm, launch_shared_swarm};
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
   // Creating swarm objects.
   let mut objects = Vec::new();
 
-  for i in 0..4 {
+  for i in 0..=5 {
     let object = SwarmObject::new(format!("bot_{}", i));
     objects.push(object);
   }
@@ -73,15 +80,19 @@ async fn main() -> io::Result<()> {
   // Starting the swarm without blocking the thread.
   launch_shared_swarm(swarm.clone(), "localhost".to_string(), 25565, 500);
 
-  sleep(4000).await; // Waiting for all the bots to connect.
+  sleep(8000).await; // Waiting for all the bots to connect.
 
-  // Send a message to the chat from all bots.
-  swarm.read().await.send(BotCommand::Chat("Hello, world!".to_string())).await; 
+  {
+    let guard = swarm.read().await;
+
+    // Send a message to the chat from all bots.
+    guard.send(BotCommand::Chat("Hello, world!".to_string())).await;
+  }
 
   sleep(5000).await; // Wait a little.
 
   // Clear and destroy swarm.
-  swarm.write().await.destroy().await; 
+  destroy_shared_swarm(swarm, Duration::from_secs(5)).await?;
 
   Ok(())
 }
