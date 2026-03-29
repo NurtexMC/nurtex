@@ -7,12 +7,11 @@ use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
-use crate::core::bot::{Bot, BotCommand, BotPlugins, BotTerminal};
+use crate::core::bot::{Bot, BotCommand, BotPlugins};
 use crate::utils::sleep;
 
 pub struct Swarm {
   pub bots: Vec<Bot>,
-  pub terminals: Vec<BotTerminal>,
   pub handles: Vec<JoinHandle<io::Result<()>>>,
 }
 
@@ -22,19 +21,14 @@ impl Swarm {
   pub fn new() -> Self {
     Self {
       bots: Vec::new(),
-      terminals: Vec::new(),
       handles: Vec::new(),
     }
   }
 
   /// Метод добавления бота в рой.
   pub fn add_bot(&mut self, username: &str, plugins: BotPlugins) {
-    let (mut bot, terminal) = Bot::new(username);
-
-    bot = bot.set_plugins(plugins);
-
+    let bot = Bot::new(username).set_plugins(plugins);
     self.bots.push(bot);
-    self.terminals.push(terminal);
   }
 
   /// Метод получения бота по его юзернейму.
@@ -59,16 +53,16 @@ impl Swarm {
 
   /// Метод отправки команды всем ботам из роя.
   pub async fn send(&self, command: BotCommand) {
-    for terminal in &self.terminals {
-      terminal.send(command.clone()).await;
+    for bot in &self.bots {
+      bot.terminal.send(command.clone()).await;
     }
   }
 
   /// Метод отправки команды определённому боту из роя.
   pub async fn send_to(&self, username: &str, command: BotCommand) {
-    for terminal in &self.terminals {
-      if terminal.receiver.as_str() == username {
-        terminal.send(command).await;
+    for bot in &self.bots {
+      if bot.username == username {
+        bot.terminal.send(command).await;
         break;
       }
     }
@@ -76,12 +70,11 @@ impl Swarm {
 
   /// Метод очистки и выключения роя.
   pub async fn destroy(&mut self) {
-    for terminal in &self.terminals {
-      terminal.send(BotCommand::Disconnect).await;
+    for bot in &self.bots {
+      bot.terminal.send(BotCommand::Disconnect).await;
     }
 
     self.bots.clear();
-    self.terminals.clear();
     self.handles.clear();
   }
 }

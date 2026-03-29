@@ -3,6 +3,7 @@
 use std::io::{self, Error, ErrorKind};
 use std::net::ToSocketAddrs;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use azalea_protocol::common::client_information::{ClientInformation, ParticleStatus};
@@ -24,7 +25,7 @@ use uuid::Uuid;
 use crate::core::components::{Physics, Profile, State};
 use crate::core::data::Storage;
 use crate::core::default::{default_command_processor, default_packet_processor};
-use crate::core::events::BotEvent;
+use crate::core::events::{BotEvent, EventHandler};
 use crate::core::handler::{handle_configuration, handle_login};
 use crate::utils::sleep;
 
@@ -38,7 +39,6 @@ pub type CommandProcessorFn =
     &'a mut Bot,
     BotCommand,
   ) -> Pin<Box<dyn std::future::Future<Output = io::Result<bool>> + Send + 'a>>;
-pub type EventListenerFn = fn(&mut Bot, BotEvent) -> io::Result<()>;
 
 #[derive(Clone, Debug)]
 pub enum BotCommand {
@@ -100,6 +100,7 @@ impl BotTerminal {
 
 pub struct Bot {
   pub status: BotStatus,
+  pub terminal: BotTerminal,
   pub username: String,
   pub uuid: Uuid,
   pub connection: Option<Connection<ClientboundGamePacket, ServerboundGamePacket>>,
@@ -110,7 +111,7 @@ pub struct Bot {
   command_receiver: mpsc::Receiver<BotCommand>,
   packet_processor: PacketProcessorFn,
   command_processor: CommandProcessorFn,
-  event_listener: Option<EventListenerFn>,
+  event_handler: Arc<EventHandler>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -164,11 +165,15 @@ pub struct PhysicsPlugin {
 }
 
 impl Bot {
-  pub fn new(username: &str) -> (Self, BotTerminal) {
+  pub fn new(username: &str) -> Self {
     let (sender, receiver) = mpsc::channel(100);
 
     let bot = Self {
       status: BotStatus::Offline,
+      terminal: BotTerminal {
+        receiver: username.to_string(),
+        cmd: sender,
+      },
       username: username.to_string(),
       uuid: Uuid::nil(),
       connection: None,
@@ -186,15 +191,10 @@ impl Bot {
       command_receiver: receiver,
       packet_processor: default_packet_processor,
       command_processor: default_command_processor,
-      event_listener: None,
+      event_handler: Arc::new(EventHandler::new()),
     };
 
-    let terminal = BotTerminal {
-      receiver: username.to_string(),
-      cmd: sender,
-    };
-
-    (bot, terminal)
+    bot
   }
 
   /// Метод запуска бота, который возвращает JoinHandle и не блокирует поток.
@@ -235,17 +235,20 @@ impl Bot {
     self
   }
 
-  /// Метод установки слушателя событий.
-  pub fn set_event_listener(mut self, listener: EventListenerFn) -> Self {
-    self.event_listener = Some(listener);
+  /// Метод установки обработчика событий.
+  pub fn set_event_handler(mut self, handler: EventHandler) -> Self {
+    self.event_handler = Arc::new(handler);
     self
   }
 
-  /// Метод отправки события всем слушателям.
-  pub fn emit_event(&mut self, event: BotEvent) {
-    if let Some(listener) = self.event_listener {
-      let _ = listener(self, event);
-    }
+  /// Метод отправки события.
+  pub fn emit_event(&self, event: BotEvent) {
+    let handler = Arc::clone(&self.event_handler);
+    let terminal = self.terminal.clone();
+
+    tokio::spawn(async move {
+      handler.trigger(terminal, event).await;
+    });
   }
 
   /// Метод создания соединения с сервером и запуска `event_loop`.
@@ -368,7 +371,7 @@ impl Bot {
 
       tokio::select! {
         Ok(packet) = conn.read() => {
-          self.emit_event(BotEvent::Packet(&packet));
+          self.emit_event(BotEvent::Packet(packet.clone()));
 
           match (self.packet_processor)(self, packet).await {
             Ok(true) => continue,

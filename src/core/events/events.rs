@@ -2,7 +2,7 @@ use azalea_protocol::packets::game::ClientboundGamePacket;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
-pub enum BotEvent<'e> {
+pub enum BotEvent {
   LoginFinished,
   ConfigurationFinished,
   Spawn,
@@ -12,5 +12,5 @@ pub enum BotEvent<'e> {
     sender_uuid: Option<Uuid>,
     message: String,
   },
-  Packet(&'e ClientboundGamePacket),
+  Packet(ClientboundGamePacket),
 }
