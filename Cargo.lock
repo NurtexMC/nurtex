@@ -360,7 +360,7 @@ dependencies = [
  "serde",
  "serde_json",
  "simdnbt",
- "socks5-impl",
+ "socks5-impl 0.8.1",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
@@ -1978,11 +1978,13 @@ dependencies = [
 name = "nurtex"
 version = "0.2.0"
 dependencies = [
+ "azalea-buf",
  "azalea-core",
  "azalea-crypto",
  "azalea-entity",
  "azalea-protocol",
  "hashbrown",
+ "socks5-impl 0.7.3",
  "tokio",
  "uuid",
 ]
@@ -2765,6 +2767,19 @@ checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "socks5-impl"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05f8fe8625d4a55c988a8e649c2821be2201493e63d3df24e94a7957917f6e27"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "percent-encoding",
+ "thiserror 2.0.18",
+ "tokio",
 ]
 
 [[package]]

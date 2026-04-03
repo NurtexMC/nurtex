@@ -1,9 +1,11 @@
 use std::io::{self, Error, ErrorKind};
 
-use azalea_protocol::common::client_information::ClientInformation;
+use azalea_buf::AzaleaWrite;
 use azalea_protocol::connect::Connection;
 use azalea_protocol::packets::config::{ClientboundConfigPacket, ServerboundConfigPacket};
 use azalea_protocol::packets::login::{ClientboundLoginPacket, ServerboundLoginPacket};
+
+use crate::core::bot::Bot;
 
 /// Функция обработки всего цикла пакетов в состоянии Login
 pub async fn handle_login(
@@ -57,15 +59,30 @@ pub async fn handle_login(
 
 /// Функция обработки всего цикла пакетов в состоянии Configuration
 pub async fn handle_configuration(
+  bot: &mut Bot,
   conn: &mut Connection<ClientboundConfigPacket, ServerboundConfigPacket>,
-  client_information: ClientInformation,
 ) -> io::Result<()> {
   use azalea_protocol::packets::config::*;
+
+  let info = bot.get_information_ref();
+
+  let mut brand_data = Vec::new();
+  
+  info.brand.azalea_write(&mut brand_data).unwrap();
+
+  conn
+    .write(ServerboundConfigPacket::CustomPayload(
+      s_custom_payload::ServerboundCustomPayload {
+        identifier: "brand".into(),
+        data: brand_data.into(),
+      },
+    ))
+    .await?;
 
   conn
     .write(ServerboundConfigPacket::ClientInformation(
       s_client_information::ServerboundClientInformation {
-        information: client_information,
+        information: info.client.clone(),
       },
     ))
     .await?;
@@ -77,14 +94,38 @@ pub async fn handle_configuration(
     };
 
     match packet {
-      ClientboundConfigPacket::RegistryData(_) => {}
-      ClientboundConfigPacket::UpdateTags(_) => {}
       ClientboundConfigPacket::SelectKnownPacks(_) => {
         conn
           .write(ServerboundConfigPacket::SelectKnownPacks(
             s_select_known_packs::ServerboundSelectKnownPacks {
               known_packs: vec![],
             },
+          ))
+          .await?;
+      }
+      ClientboundConfigPacket::ResourcePackPush(p) => {
+        conn
+          .write(ServerboundConfigPacket::ResourcePack(
+            s_resource_pack::ServerboundResourcePack {
+              id: p.id,
+              action: s_resource_pack::Action::Accepted,
+            },
+          ))
+          .await?;
+        conn
+          .write(ServerboundConfigPacket::ResourcePack(
+            s_resource_pack::ServerboundResourcePack {
+              id: p.id,
+              action: s_resource_pack::Action::SuccessfullyLoaded,
+            },
+          ))
+          .await?;
+      }
+      ClientboundConfigPacket::ResourcePackPop(_) => {}
+      ClientboundConfigPacket::Ping(p) => {
+        conn
+          .write(ServerboundConfigPacket::Pong(
+            s_pong::ServerboundPong { id: p.id },
           ))
           .await?;
       }
