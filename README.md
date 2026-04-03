@@ -9,7 +9,7 @@ Supported Minecraft version: `1.21.11` (or protocol version - `774`).
 To use this library in your code, add a dependency to the Cargo.toml:
 
 ```
-nurtex = "0.2.0"
+nurtex = "0.3.0"
 ```
 
 # Examples
