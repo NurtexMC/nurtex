@@ -18,5 +18,7 @@ azalea-protocol = { version = "0.15", features = ["connecting"] }
 azalea-crypto = "0.15"
 azalea-entity = "0.15"
 azalea-core = "0.15"
+azalea-buf = "0.15"
+socks5-impl = { version = "0.7.3", features = ["client"] }
 uuid = { version = "1", features = ["v4"] }
 hashbrown = "0.16.1"

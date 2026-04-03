@@ -6,6 +6,7 @@ use azalea_entity::LookDirection;
 use azalea_protocol::packets::game::{
   ClientboundGamePacket, ServerboundAcceptTeleportation, ServerboundClientCommand,
   ServerboundGamePacket, ServerboundKeepAlive, ServerboundPong,
+  s_resource_pack::ServerboundResourcePack,
 };
 
 use crate::core::bot::Bot;
@@ -354,6 +355,24 @@ async fn process_packet(bot: &mut Bot, packet: ClientboundGamePacket) -> io::Res
         ErrorKind::ConnectionAborted,
         format!("Bot was disconnected (play): {}", p.reason.to_string()),
       ));
+    }
+    ClientboundGamePacket::ResourcePackPush(p) => {
+      conn
+        .write(ServerboundGamePacket::ResourcePack(
+          ServerboundResourcePack {
+            id: p.id,
+            action: azalea_protocol::packets::game::s_resource_pack::Action::Accepted,
+          },
+        ))
+        .await?;
+      conn
+        .write(ServerboundGamePacket::ResourcePack(
+          ServerboundResourcePack {
+            id: p.id,
+            action: azalea_protocol::packets::game::s_resource_pack::Action::SuccessfullyLoaded,
+          },
+        ))
+        .await?;
     }
     _ => return Ok(true),
   }

@@ -4,8 +4,7 @@ use std::io::{self, Error, ErrorKind};
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 
-use azalea_protocol::common::client_information::{ClientInformation, ParticleStatus};
-use azalea_protocol::connect::Connection;
+use azalea_protocol::connect::{Connection, Proxy};
 use azalea_protocol::packets::game::s_chat::LastSeenMessagesUpdate;
 use azalea_protocol::packets::game::{
   ClientboundGamePacket, ServerboundChat, ServerboundGamePacket,
@@ -19,7 +18,7 @@ use tokio::sync::{RwLock, mpsc};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
-use crate::core::common::{BotCommand, BotComponents, BotPlugins, BotStatus, BotTerminal};
+use crate::core::common::{BotCommand, BotComponents, BotInformation, BotPlugins, BotStatus, BotTerminal};
 use crate::core::components::{Physics, Profile, State};
 use crate::core::data::{Storage, StorageLock};
 use crate::core::events::{BotEvent, EventInvoker, PacketPayload};
@@ -56,7 +55,8 @@ pub struct Bot {
   /// Shared-хранилище бота (опциональное)
   pub shared_storage: Option<StorageLock>,
 
-  client_information: ClientInformation,
+  proxy: Option<Proxy>,
+  information: BotInformation,
   command_receiver: mpsc::Receiver<BotCommand>,
   packet_processor: PacketProcessorFn,
   command_processor: CommandProcessorFn,
@@ -84,10 +84,8 @@ impl Bot {
         profile: Profile::default(),
       },
       plugins: BotPlugins::default(),
-      client_information: ClientInformation {
-        particle_status: ParticleStatus::Minimal,
-        ..Default::default()
-      },
+      information: BotInformation::default(),
+      proxy: None,
       command_receiver: receiver,
       packet_processor: default_packet_processor,
       command_processor: default_command_processor,
@@ -111,9 +109,15 @@ impl Bot {
     self
   }
 
-  /// Метод установки информации клиента
-  pub fn set_information(mut self, information: ClientInformation) -> Self {
-    self.client_information = information;
+  /// Метод установки прокси
+  pub fn set_proxy(mut self, proxy: Proxy) -> Self {
+    self.proxy = Some(proxy);
+    self
+  }
+
+  /// Метод установки информации бота
+  pub fn set_information(mut self, information: BotInformation) -> Self {
+    self.information = information;
     self
   }
 
@@ -158,6 +162,11 @@ impl Bot {
     });
   }
 
+  /// Метод получения ссылки на информацию бота
+  pub fn get_information_ref(&self) -> &BotInformation {
+    &self.information
+  }
+
   /// Метод создания соединения с сервером и запуска `event_loop`
   async fn start(&mut self, server_host: &str, server_port: u16) -> io::Result<()> {
     self.connection = None;
@@ -176,18 +185,35 @@ impl Bot {
       ));
     };
 
-    let mut conn = match Connection::new(&address).await {
-      Ok(c) => c,
-      Err(err) => {
-        return Err(Error::new(
-          ErrorKind::ConnectionRefused,
-          format!(
-            "Bot {} could not connect to {}: {}",
-            self.username,
-            &address,
-            err.to_string()
-          ),
-        ));
+    let mut conn = if let Some(proxy) = &self.proxy {
+      match Connection::new_with_proxy(&address, proxy.clone()).await {
+        Ok(c) => c,
+        Err(err) => {
+          return Err(Error::new(
+            ErrorKind::ConnectionRefused,
+            format!(
+              "Bot {} could not connect to {}: {}",
+              self.username,
+              &address,
+              err.to_string()
+            ),
+          ));
+        }
+      }
+    } else {
+      match Connection::new(&address).await {
+        Ok(c) => c,
+        Err(err) => {
+          return Err(Error::new(
+            ErrorKind::ConnectionRefused,
+            format!(
+              "Bot {} could not connect to {}: {}",
+              self.username,
+              &address,
+              err.to_string()
+            ),
+          ));
+        }
       }
     };
 
@@ -216,7 +242,7 @@ impl Bot {
     self.emit_event(BotEvent::LoginFinished);
 
     let mut conn = conn.config();
-    handle_configuration(&mut conn, self.client_information.clone()).await?;
+    handle_configuration(self, &mut conn).await?;
 
     self.emit_event(BotEvent::ConfigurationFinished);
 

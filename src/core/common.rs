@@ -1,4 +1,4 @@
-use azalea_protocol::packets::game::{ServerboundGamePacket, s_interact::InteractionHand};
+use azalea_protocol::{common::client_information::{ClientInformation, ParticleStatus}, packets::game::{ServerboundGamePacket, s_interact::InteractionHand}};
 use tokio::sync::mpsc;
 
 use crate::core::components::{Physics, Profile, State};
@@ -29,7 +29,10 @@ pub enum BotCommand {
 
 #[derive(Clone)]
 pub struct BotTerminal {
+  /// Юзернейм получателя команд (или же юзернейм бота)
   pub receiver: String,
+
+  /// Отправитель команд
   pub cmd: mpsc::Sender<BotCommand>,
 }
 
@@ -73,6 +76,27 @@ pub struct BotComponents {
   pub physics: Physics,
   pub state: State,
   pub profile: Profile,
+}
+
+#[derive(Debug)]
+pub struct BotInformation {
+  /// Бренд бота, по умолчанию "vanilla"
+  pub brand: String,
+
+  /// Клиентская информация бота
+  pub client: ClientInformation,
+}
+
+impl Default for BotInformation {
+  fn default() -> Self {
+    Self {
+      brand: "vanilla".to_string(),
+      client: ClientInformation {
+        particle_status: ParticleStatus::Minimal,
+        ..Default::default()
+      }
+    }
+  }
 }
 
 #[derive(Debug)]
