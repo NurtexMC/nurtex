@@ -3,14 +3,17 @@
 use std::io;
 use std::sync::Arc;
 
+use azalea_protocol::connect::Proxy;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
+use crate::common::BotInformation;
 use crate::core::bot::Bot;
 use crate::core::common::{BotCommand, BotPlugins, BotTerminal};
 use crate::core::data::{Storage, StorageLock};
-use crate::utils::sleep;
+use crate::core::events::EventInvoker;
+use crate::utils::time::sleep;
 
 pub struct Swarm {
   /// Список всех ботов, после запуска данный список будет пустым
@@ -38,14 +41,24 @@ impl Swarm {
     }
   }
 
-  /// Метод добавления бота в рой
-  pub fn add_bot(&mut self, object: SwarmObject) {
+  /// Метод добавления объекта бота в рой
+  pub fn add_object(&mut self, object: SwarmObject) {
     let mut bot = Bot::new(&object.username)
+      .set_connection_timeout(object.connection_timeout)
       .set_uuid(object.uuid)
-      .set_plugins(object.plugins);
+      .set_plugins(object.plugins)
+      .set_information(object.information);
 
     if object.use_shared_storage {
       bot = bot.set_shared_storage(self.shared_storage.clone());
+    }
+
+    if let Some(proxy) = object.proxy {
+      bot = bot.set_proxy(proxy);
+    }
+
+    if let Some(invoker) = object.event_invoker {
+      bot = bot.set_event_invoker(invoker);
     }
 
     let terminal = Arc::clone(&bot.terminal);
@@ -120,19 +133,20 @@ impl Swarm {
   }
 }
 
-#[derive(Debug)]
+/// Объект роя, выполняющий роль **вспомогательной структуры**, которая содержит информацию.
+/// Данный объект **НЕ является** полноценным ботом для роя, это лишь обёртка над его поверхностной
+/// информацией (проще говоря опции).
 pub struct SwarmObject {
-  /// Юзернейм бота
+  /// Юзернейм объекта бота
   pub username: String,
 
-  /// UUID бота (по умолчанию нулевой)
-  pub uuid: Uuid,
-
-  /// Плагины бота
-  pub plugins: BotPlugins,
-
-  /// Флаг, который определяет, будет ли бот использовать shared-хранилище роя (по умолчанию true)
-  pub use_shared_storage: bool,
+  uuid: Uuid,
+  plugins: BotPlugins,
+  event_invoker: Option<EventInvoker>,
+  connection_timeout: u64,
+  proxy: Option<Proxy>,
+  information: BotInformation,
+  use_shared_storage: bool,
 }
 
 impl SwarmObject {
@@ -141,6 +155,10 @@ impl SwarmObject {
       username,
       uuid: Uuid::nil(),
       plugins: BotPlugins::default(),
+      event_invoker: None,
+      connection_timeout: 14000,
+      proxy: None,
+      information: BotInformation::default(),
       use_shared_storage: true,
     }
   }
@@ -154,6 +172,37 @@ impl SwarmObject {
   /// Метод установки плагинов
   pub fn set_plugins(mut self, plugins: BotPlugins) -> Self {
     self.plugins = plugins;
+    self
+  }
+
+  /// Метод установки инициатора событий
+  pub fn set_event_invoker(mut self, invoker: EventInvoker) -> Self {
+    self.event_invoker = Some(invoker);
+    self
+  }
+
+  /// Метод установки таймаута подключения
+  pub fn set_connection_timeout(mut self, timeout: u64) -> Self {
+    self.connection_timeout = timeout;
+    self
+  }
+
+  /// Метод установки информации
+  pub fn set_information(mut self, information: BotInformation) -> Self {
+    self.information = information;
+    self
+  }
+
+  /// Метод установки прокси
+  pub fn set_proxy(mut self, proxy: Proxy) -> Self {
+    self.proxy = Some(proxy);
+    self
+  }
+
+  /// Метод установки значения для флага `use_shared_storage`,
+  /// который отвечат за использование Shared-хранилища ботами
+  pub fn set_use_shared_storage(mut self, state: bool) -> Self {
+    self.use_shared_storage = state;
     self
   }
 }

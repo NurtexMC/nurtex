@@ -1,8 +1,9 @@
 #![allow(dead_code)]
 
 use std::io::{self, Error, ErrorKind};
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
+use std::time::Duration;
 
 use azalea_protocol::connect::{Connection, Proxy};
 use azalea_protocol::packets::game::s_chat::LastSeenMessagesUpdate;
@@ -10,22 +11,27 @@ use azalea_protocol::packets::game::{
   ClientboundGamePacket, ServerboundChat, ServerboundGamePacket,
 };
 use azalea_protocol::packets::handshake::s_intention::ServerboundIntention;
+use azalea_protocol::packets::handshake::{ClientboundHandshakePacket, ServerboundHandshakePacket};
 use azalea_protocol::packets::login::s_hello::ServerboundHello;
 use azalea_protocol::packets::login::s_login_acknowledged::ServerboundLoginAcknowledged;
 use azalea_protocol::packets::{ClientIntention, PROTOCOL_VERSION};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{RwLock, mpsc};
 use tokio::task::JoinHandle;
+use tokio::time::timeout;
 use uuid::Uuid;
 
-use crate::core::common::{BotCommand, BotComponents, BotInformation, BotPlugins, BotStatus, BotTerminal};
+use crate::core::common::{
+  BotCommand, BotComponents, BotInformation, BotPlugins, BotStatus, BotTerminal,
+};
 use crate::core::components::{Physics, Profile, State};
 use crate::core::data::{Storage, StorageLock};
 use crate::core::events::{BotEvent, EventInvoker, PacketPayload};
 use crate::core::handlers::base_processor::{handle_configuration, handle_login};
 use crate::core::handlers::command_processor::{CommandProcessorFn, default_command_processor};
 use crate::core::handlers::packet_processor::{PacketProcessorFn, default_packet_processor};
-use crate::utils::{sleep, timestamp};
+use crate::events::DisconnectPayload;
+use crate::utils::time::{sleep, timestamp};
 
 pub struct Bot {
   /// Статус подключения бота (offline / connecting / online)
@@ -55,6 +61,7 @@ pub struct Bot {
   /// Shared-хранилище бота (опциональное)
   pub shared_storage: Option<StorageLock>,
 
+  connection_timeout: u64,
   proxy: Option<Proxy>,
   information: BotInformation,
   command_receiver: mpsc::Receiver<BotCommand>,
@@ -67,7 +74,7 @@ impl Bot {
   pub fn new(username: &str) -> Self {
     let (sender, receiver) = mpsc::channel(50);
 
-    let bot = Self {
+    Self {
       status: BotStatus::Offline,
       terminal: Arc::new(BotTerminal {
         receiver: username.to_string(),
@@ -85,14 +92,13 @@ impl Bot {
       },
       plugins: BotPlugins::default(),
       information: BotInformation::default(),
+      connection_timeout: 14000,
       proxy: None,
       command_receiver: receiver,
       packet_processor: default_packet_processor,
       command_processor: default_command_processor,
       event_invoker: Arc::new(EventInvoker::new()),
-    };
-
-    bot
+    }
   }
 
   /// Метод запуска бота, который возвращает JoinHandle и не блокирует поток.
@@ -103,9 +109,15 @@ impl Bot {
     tokio::spawn(async move { self.connect_to(&host, port).await })
   }
 
-  /// Метод установки UUID.
+  /// Метод установки UUID
   pub fn set_uuid(mut self, uuid: Uuid) -> Self {
     self.uuid = uuid;
+    self
+  }
+
+  /// Метод установки таймаута подключения
+  pub fn set_connection_timeout(mut self, timeout: u64) -> Self {
+    self.connection_timeout = timeout;
     self
   }
 
@@ -154,7 +166,6 @@ impl Bot {
   /// Метод отправки события
   pub fn emit_event(&self, event: BotEvent) {
     let invoker = Arc::clone(&self.event_invoker);
-
     let terminal = Arc::clone(&self.terminal);
 
     tokio::spawn(async move {
@@ -167,7 +178,21 @@ impl Bot {
     &self.information
   }
 
-  /// Метод создания соединения с сервером и запуска `event_loop`
+  /// Метод создания подключения
+  async fn create_connection(
+    &self,
+    address: SocketAddr,
+  ) -> io::Result<Connection<ClientboundHandshakePacket, ServerboundHandshakePacket>> {
+    let result = if let Some(proxy) = &self.proxy {
+      Connection::new_with_proxy(&address, proxy.clone()).await
+    } else {
+      Connection::new(&address).await
+    };
+
+    result.map_err(|err| Error::new(ErrorKind::ConnectionRefused, err.to_string()))
+  }
+
+  /// Метод создания соединения с сервером и запуска цикла событий
   async fn start(&mut self, server_host: &str, server_port: u16) -> io::Result<()> {
     self.connection = None;
 
@@ -185,37 +210,38 @@ impl Bot {
       ));
     };
 
-    let mut conn = if let Some(proxy) = &self.proxy {
-      match Connection::new_with_proxy(&address, proxy.clone()).await {
-        Ok(c) => c,
-        Err(err) => {
-          return Err(Error::new(
-            ErrorKind::ConnectionRefused,
-            format!(
-              "Bot {} could not connect to {}: {}",
-              self.username,
-              &address,
-              err.to_string()
-            ),
-          ));
-        }
+    let connection_result = timeout(
+      Duration::from_millis(self.connection_timeout),
+      self.perform_connection(address, server_host, server_port),
+    )
+    .await;
+
+    match connection_result {
+      Ok(Ok(conn)) => {
+        self.connection = Some(conn);
+        self.status = BotStatus::Online;
+        self.event_loop().await?;
+        Ok(())
       }
-    } else {
-      match Connection::new(&address).await {
-        Ok(c) => c,
-        Err(err) => {
-          return Err(Error::new(
-            ErrorKind::ConnectionRefused,
-            format!(
-              "Bot {} could not connect to {}: {}",
-              self.username,
-              &address,
-              err.to_string()
-            ),
-          ));
-        }
-      }
-    };
+      Ok(Err(err)) => Err(err),
+      Err(_) => Err(io::Error::new(
+        io::ErrorKind::TimedOut,
+        format!(
+          "Failed to get a response from the server within the timeout period ({} ms)",
+          self.connection_timeout
+        ),
+      )),
+    }
+  }
+
+  /// Метод полного процесса подключения бота к серверу
+  async fn perform_connection(
+    &mut self,
+    address: SocketAddr,
+    server_host: &str,
+    server_port: u16,
+  ) -> io::Result<Connection<ClientboundGamePacket, ServerboundGamePacket>> {
+    let mut conn = self.create_connection(address).await?;
 
     self.status = BotStatus::Connecting;
 
@@ -247,13 +273,8 @@ impl Bot {
     self.emit_event(BotEvent::ConfigurationFinished);
 
     let conn = conn.game();
-    self.connection = Some(conn);
 
-    self.status = BotStatus::Online;
-
-    self.event_loop().await?;
-
-    Ok(())
+    Ok(conn)
   }
 
   /// Метод, который подключает бота к серверу, ловит его ошибки и корректно обрабатывает их
@@ -267,8 +288,12 @@ impl Bot {
           ErrorKind::ConnectionRefused
           | ErrorKind::ConnectionReset
           | ErrorKind::ConnectionAborted
-          | ErrorKind::NotConnected => {
-            self.emit_event(BotEvent::Disconnect);
+          | ErrorKind::NotConnected
+          | ErrorKind::TimedOut => {
+            self.emit_event(BotEvent::Disconnect(DisconnectPayload {
+              reason: err.to_string(),
+              timestamp: timestamp(),
+            }));
 
             self.status = BotStatus::Offline;
 
@@ -306,16 +331,21 @@ impl Bot {
 
       tokio::select! {
         // Обработка пакета
-        Ok(packet) = conn.read() => {
-          self.emit_event(BotEvent::Packet(PacketPayload {
-            packet: packet.clone(),
-            timestamp: timestamp()
-          }));
+        result = conn.read() => {
+          match result {
+            Ok(packet) => {
+              self.emit_event(BotEvent::Packet(PacketPayload {
+                packet: packet.clone(),
+                timestamp: timestamp()
+              }));
 
-          match (self.packet_processor)(self, packet).await {
-            Ok(true) => continue,
-            Ok(false) => return Ok(()),
-            Err(e) => return Err(e),
+              match (self.packet_processor)(self, packet).await {
+                Ok(true) => continue,
+                Ok(false) => return Ok(()),
+                Err(e) => return Err(e),
+              }
+            }
+            Err(_) => {}
           }
         }
 
@@ -340,13 +370,11 @@ impl Bot {
 
   /// Метод проверки некого Entity ID на сходство с Entity ID текущего бота
   pub fn is_this_my_entity_id(&self, id: i32) -> bool {
-    if let Some(entity_id) = self.components.profile.entity_id {
-      if id == entity_id {
-        return true;
-      }
-    }
-
-    false
+    self
+      .components
+      .profile
+      .entity_id
+      .map_or(false, |entity_id| entity_id == id)
   }
 
   /// Метод выполнения определённых операций в каждый физический тик
@@ -354,7 +382,7 @@ impl Bot {
     let Some(conn) = &mut self.connection else {
       return Err(Error::new(
         ErrorKind::NotConnected,
-        format!("Bot {} connection could not be obtained", self.username),
+        "Connection could not be obtained",
       ));
     };
 
@@ -367,7 +395,9 @@ impl Bot {
 
   /// Метод очистки данных бота
   pub async fn clear(&mut self) {
-    self.local_storage.write().await.entities.clear();
+    let mut storage = self.local_storage.write().await;
+    storage.entities.clear();
+    storage.entities.shrink_to_fit();
   }
 
   /// Метод закрытия TcpStream (отключение от сервера)
@@ -375,27 +405,25 @@ impl Bot {
     let Some(conn) = self.connection.take() else {
       return Err(Error::new(
         ErrorKind::NotConnected,
-        format!("Bot {} connection could not be obtained", self.username),
+        "Connection could not be obtained",
       ));
     };
 
     let mut stream = match conn.unwrap() {
       Ok(s) => s,
       Err(err) => {
-        return Err(Error::new(
-          ErrorKind::Other,
-          format!(
-            "Bot {} could not disconnect: {}",
-            self.username,
-            err.to_string()
-          ),
-        ));
+        return Err(Error::new(ErrorKind::Other, err.to_string()));
       }
     };
 
     stream.shutdown().await?;
 
     self.clear().await;
+
+    self.emit_event(BotEvent::Disconnect(DisconnectPayload {
+      reason: "Manual disconnect".to_string(),
+      timestamp: timestamp(),
+    }));
 
     Ok(())
   }
@@ -417,7 +445,7 @@ impl Bot {
     let Some(conn) = &mut self.connection else {
       return Err(Error::new(
         ErrorKind::NotConnected,
-        format!("Bot {} connection could not be obtained", self.username),
+        "Connection could not be obtained",
       ));
     };
 

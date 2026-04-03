@@ -13,7 +13,6 @@ use azalea_protocol::packets::game::{
 
 use crate::core::bot::Bot;
 use crate::core::common::BotCommand;
-use crate::core::events::BotEvent;
 
 /// Тип обработчика команд
 pub type CommandProcessorFn =
@@ -35,7 +34,7 @@ async fn process_command(bot: &mut Bot, command: BotCommand) -> io::Result<bool>
   let Some(conn) = &mut bot.connection else {
     return Err(Error::new(
       ErrorKind::NotConnected,
-      format!("Bot {} connection could not be obtained", bot.username),
+      "Connection could not be obtained",
     ));
   };
 
@@ -103,7 +102,6 @@ async fn process_command(bot: &mut Bot, command: BotCommand) -> io::Result<bool>
     }
     BotCommand::Disconnect => {
       bot.disconnect().await?;
-      bot.emit_event(BotEvent::Disconnect);
       return Ok(false);
     }
     BotCommand::Reconnect {
