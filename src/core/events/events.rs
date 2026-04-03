@@ -2,6 +2,12 @@ use azalea_protocol::packets::game::ClientboundGamePacket;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
+pub struct DisconnectPayload {
+  pub reason: String,
+  pub timestamp: u64,
+}
+
+#[derive(Debug, Clone)]
 pub struct ChatPayload {
   pub sender_uuid: Option<Uuid>,
   pub message: String,
@@ -20,7 +26,7 @@ pub enum BotEvent {
   ConfigurationFinished,
   Spawn,
   Death,
-  Disconnect,
+  Disconnect(DisconnectPayload),
   Chat(ChatPayload),
   Packet(PacketPayload),
 }

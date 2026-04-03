@@ -41,7 +41,7 @@ pub async fn handle_login(
       ClientboundLoginPacket::LoginDisconnect(p) => {
         return Err(Error::new(
           ErrorKind::ConnectionAborted,
-          format!("Bot was disconnected (login): {}", p.reason.to_string()),
+          format!("Disconnected (Login): {}", p.reason.to_string()),
         ));
       }
       ClientboundLoginPacket::CookieRequest(p) => {
@@ -67,7 +67,7 @@ pub async fn handle_configuration(
   let info = bot.get_information_ref();
 
   let mut brand_data = Vec::new();
-  
+
   info.brand.azalea_write(&mut brand_data).unwrap();
 
   conn
@@ -121,12 +121,11 @@ pub async fn handle_configuration(
           ))
           .await?;
       }
-      ClientboundConfigPacket::ResourcePackPop(_) => {}
       ClientboundConfigPacket::Ping(p) => {
         conn
-          .write(ServerboundConfigPacket::Pong(
-            s_pong::ServerboundPong { id: p.id },
-          ))
+          .write(ServerboundConfigPacket::Pong(s_pong::ServerboundPong {
+            id: p.id,
+          }))
           .await?;
       }
       ClientboundConfigPacket::KeepAlive(p) => {
@@ -147,7 +146,7 @@ pub async fn handle_configuration(
       ClientboundConfigPacket::Disconnect(p) => {
         return Err(Error::new(
           ErrorKind::ConnectionAborted,
-          format!("Bot was disconnected (config): {}", p.reason.to_string()),
+          format!("Disconnected (Configuration): {}", p.reason.to_string()),
         ));
       }
       ClientboundConfigPacket::CookieRequest(p) => {

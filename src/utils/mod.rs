@@ -1,3 +1,1 @@
-mod time;
-
-pub use time::*;
+pub mod time;

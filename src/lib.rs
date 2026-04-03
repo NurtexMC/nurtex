@@ -4,25 +4,22 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::timeout;
 
-// Ре-экспорт
-pub use azalea_core::*;
-pub use azalea_crypto::*;
-pub use azalea_entity::*;
-pub use azalea_protocol::*;
-pub use uuid::Uuid;
-
 use crate::core::swarm::{SharedSwarm, Swarm, SwarmObject};
-use crate::utils::sleep;
+use crate::utils::time::sleep;
 
-pub mod core;
-pub mod utils;
+pub use core::*;
+pub use utils::*;
+
+mod core;
+pub mod export;
+mod utils;
 
 /// Вспомогательная функция создание роя ботов.
 pub fn create_swarm(objects: Vec<SwarmObject>) -> Swarm {
   let mut swarm = Swarm::new();
 
   for object in objects {
-    swarm.add_bot(object);
+    swarm.add_object(object);
   }
 
   swarm

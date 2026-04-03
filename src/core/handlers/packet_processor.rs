@@ -12,7 +12,8 @@ use azalea_protocol::packets::game::{
 use crate::core::bot::Bot;
 use crate::core::data::{Entity, PlayerInfo};
 use crate::core::events::{BotEvent, ChatPayload};
-use crate::utils::timestamp;
+use crate::events::DisconnectPayload;
+use crate::utils::time::timestamp;
 
 /// Тип обработчика пакетов
 pub type PacketProcessorFn =
@@ -34,7 +35,7 @@ async fn process_packet(bot: &mut Bot, packet: ClientboundGamePacket) -> io::Res
   let Some(conn) = &mut bot.connection else {
     return Err(Error::new(
       ErrorKind::NotConnected,
-      format!("Bot {} connection could not be obtained", bot.username),
+      "Connection could not be obtained",
     ));
   };
 
@@ -351,9 +352,14 @@ async fn process_packet(bot: &mut Bot, packet: ClientboundGamePacket) -> io::Res
       }));
     }
     ClientboundGamePacket::Disconnect(p) => {
+      bot.emit_event(BotEvent::Disconnect(DisconnectPayload {
+        reason: p.reason.to_string(),
+        timestamp: timestamp(),
+      }));
+
       return Err(Error::new(
         ErrorKind::ConnectionAborted,
-        format!("Bot was disconnected (play): {}", p.reason.to_string()),
+        format!("Disconnected (Play): {}", p.reason.to_string()),
       ));
     }
     ClientboundGamePacket::ResourcePackPush(p) => {

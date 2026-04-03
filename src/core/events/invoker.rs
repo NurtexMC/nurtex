@@ -4,10 +4,12 @@ use std::sync::Arc;
 
 use crate::core::common::BotTerminal;
 use crate::core::events::{BotEvent, ChatPayload, PacketPayload};
+use crate::events::DisconnectPayload;
 
 pub type AsyncEventInvoker =
   Box<dyn Fn(Arc<BotTerminal>, BotEvent) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
+/// Инициатор событий и их обработчиков
 pub struct EventInvoker {
   login_finished_handler:
     Option<Arc<dyn Fn(Arc<BotTerminal>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>>,
@@ -17,8 +19,13 @@ pub struct EventInvoker {
     Option<Arc<dyn Fn(Arc<BotTerminal>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>>,
   death_handler:
     Option<Arc<dyn Fn(Arc<BotTerminal>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>>,
-  disconnect_handler:
-    Option<Arc<dyn Fn(Arc<BotTerminal>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>>,
+  disconnect_handler: Option<
+    Arc<
+      dyn Fn(Arc<BotTerminal>, DisconnectPayload) -> Pin<Box<dyn Future<Output = ()> + Send>>
+        + Send
+        + Sync,
+    >,
+  >,
   chat_handler: Option<
     Arc<
       dyn Fn(Arc<BotTerminal>, ChatPayload) -> Pin<Box<dyn Future<Output = ()> + Send>>
@@ -82,10 +89,12 @@ impl EventInvoker {
 
   pub fn on_disconnect<F, Fut>(&mut self, handler: F)
   where
-    F: Fn(Arc<BotTerminal>) -> Fut + Send + Sync + 'static,
+    F: Fn(Arc<BotTerminal>, DisconnectPayload) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = ()> + Send + 'static,
   {
-    self.disconnect_handler = Some(Arc::new(move |terminal| Box::pin(handler(terminal))));
+    self.disconnect_handler = Some(Arc::new(move |terminal, payload| {
+      Box::pin(handler(terminal, payload))
+    }));
   }
 
   pub fn on_chat<F, Fut>(&mut self, handler: F)
@@ -108,7 +117,7 @@ impl EventInvoker {
     }));
   }
 
-  /// Метод триггеринга определённого события.
+  /// Метод триггеринга определённого события
   pub async fn trigger(&self, terminal: Arc<BotTerminal>, event: BotEvent) {
     match event {
       BotEvent::LoginFinished => {
@@ -131,9 +140,9 @@ impl EventInvoker {
           handler(terminal).await;
         }
       }
-      BotEvent::Disconnect => {
+      BotEvent::Disconnect(payload) => {
         if let Some(handler) = &self.disconnect_handler {
-          handler(terminal).await;
+          handler(terminal, payload).await;
         }
       }
       BotEvent::Chat(payload) => {

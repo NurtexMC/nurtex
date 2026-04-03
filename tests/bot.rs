@@ -2,8 +2,8 @@
 mod tests {
   use std::io;
 
-  use nurtex::core::bot::Bot;
-  use nurtex::core::events::EventInvoker;
+  use nurtex::bot::Bot;
+  use nurtex::events::EventInvoker;
 
   #[tokio::test]
   async fn launch_bot() -> io::Result<()> {
@@ -13,6 +13,20 @@ mod tests {
 
     event_invoker.on_spawn(|terminal| async move {
       println!("Бот {} заспавнился!", terminal.receiver);
+    });
+
+    event_invoker.on_chat(|terminal, payload| async move {
+      println!(
+        "Бот {} получил сообщение: {}",
+        terminal.receiver, payload.message
+      );
+    });
+
+    event_invoker.on_disconnect(|terminal, payload| async move {
+      println!(
+        "Бот {} отключился по причине: {}",
+        terminal.receiver, payload.reason
+      );
     });
 
     bot

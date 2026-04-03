@@ -1,4 +1,7 @@
-use azalea_protocol::{common::client_information::{ClientInformation, ParticleStatus}, packets::game::{ServerboundGamePacket, s_interact::InteractionHand}};
+use azalea_protocol::{
+  common::client_information::{ClientInformation, ParticleStatus},
+  packets::game::{ServerboundGamePacket, s_interact::InteractionHand},
+};
 use tokio::sync::mpsc;
 
 use crate::core::components::{Physics, Profile, State};
@@ -94,7 +97,7 @@ impl Default for BotInformation {
       client: ClientInformation {
         particle_status: ParticleStatus::Minimal,
         ..Default::default()
-      }
+      },
     }
   }
 }
