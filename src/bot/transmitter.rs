@@ -27,13 +27,13 @@ use crate::bot::world::StorageLock;
 ///     }
 /// }
 /// ```
-/// 
+///
 /// Пример использования своего пакета:
 /// ```rust, ignore
 /// // Создаём бота и задаём ему конкретный тип
 /// let account = BotAccount::new("NurtexBot");
 /// let bot: Bot<CustomPackage> = Bot::create(account);
-/// 
+///
 /// // Прочая логика...
 /// ```
 pub trait BotPackage: Clone + Send + 'static {
@@ -42,17 +42,17 @@ pub trait BotPackage: Clone + Send + 'static {
 }
 
 /// Передатчик пакетов с данными бота.
-/// 
+///
 /// Пример использования:
 /// ```rust, ignore
 /// // Создаём бота и задаём ему тип со стандартным пакетом данных
 /// let account = BotAccount::new("NurtexBot");
 /// let bot: Bot<StandardPackage> = Bot::create(account)
 ///   .set_transmitter_interval(500); // Можно указать свой интервал (в мс)
-/// 
+///
 /// // Получаем передатчик бота для отдельной задачи
 /// let transmitter = bot.get_transmitter();
-/// 
+///
 /// // Спавним tokio задачу до запуска бота
 /// tokio::spawn(async move {
 ///   // Подписываемся на передатчик пакетов
@@ -63,7 +63,7 @@ pub trait BotPackage: Clone + Send + 'static {
 ///     println!("Здоровье бота: {:?}", package.health);
 ///   }
 /// });
-/// 
+///
 /// // Подключаем бота к серверу
 /// bot.connect_to("localhost", 25565).await?;
 /// ```

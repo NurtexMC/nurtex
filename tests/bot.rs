@@ -24,8 +24,7 @@ mod tests {
   #[tokio::test]
   async fn launch_bot() -> io::Result<()> {
     let account = BotAccount::new("NurtexBot");
-    let bot: Bot<MyPackage> = Bot::create(account)
-      .set_transmitter_interval(1000);
+    let bot: Bot<MyPackage> = Bot::create(account).set_transmitter_interval(1000);
 
     let username = bot.account.username.clone();
     let transmitter = bot.get_transmitter();
