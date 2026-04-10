@@ -18,11 +18,18 @@ pub struct Storage {
 }
 
 impl Storage {
+  // Метод создания нового пустого хранилища
   pub fn new() -> Self {
     Self {
       entities: HashMap::new(),
       chunks: HashMap::new(),
     }
+  }
+
+  // Метод полной очистки хранилища
+  pub fn clear(&mut self) {
+    self.entities.clear();
+    self.chunks.clear();
   }
 
   /// Метод получения блока по позиции
@@ -38,7 +45,7 @@ impl Storage {
   }
 
   /// Метод установки блока на определённую позицию
-  pub fn set_block(&mut self, pos: &BlockPos, block_state: u32) {
+  pub fn set_block(&mut self, pos: &BlockPos, state: u32) {
     let chunk_pos = ChunkPos::from(pos);
 
     let chunk = self.chunks.entry(chunk_pos).or_insert_with(|| Chunk::new(chunk_pos, Vec::new()));
@@ -47,7 +54,22 @@ impl Storage {
     let y = (pos.y + 64) as usize;
     let z = pos.z.rem_euclid(16) as usize;
 
-    chunk.set_block(x, y, z, block_state);
+    chunk.set_block(x, y, z, state);
+  }
+
+  /// Метод установки секции блоков
+  pub fn set_block_section(&mut self, blocks: HashMap<BlockPos, u32>) {
+    for (pos, state) in blocks {
+      let chunk_pos = ChunkPos::from(pos);
+
+      let chunk = self.chunks.entry(chunk_pos).or_insert_with(|| Chunk::new(chunk_pos, Vec::new()));
+
+      let x = pos.x.rem_euclid(16) as usize;
+      let y = (pos.y + 64) as usize;
+      let z = pos.z.rem_euclid(16) as usize;
+
+      chunk.set_block(x, y, z, state);
+    }
   }
 
   /// Метод загрузки чанка
