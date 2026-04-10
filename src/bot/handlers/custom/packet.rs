@@ -7,6 +7,7 @@ use azalea_protocol::packets::game::{
   ClientboundGamePacket, ServerboundAcceptTeleportation, ServerboundClientCommand, ServerboundGamePacket, ServerboundKeepAlive, ServerboundPong,
   s_resource_pack::ServerboundResourcePack,
 };
+use hashbrown::HashMap;
 
 use crate::bot::Bot;
 use crate::bot::components::position::Position;
@@ -43,88 +44,48 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
         player_info: None,
       };
 
-      if let Some(shared_storage) = &bot.shared_storage {
-        match shared_storage.try_write() {
-          Ok(mut guard) => {
-            guard.entities.insert(p.id.0, entity);
-          }
-          Err(_) => {}
-        }
-      } else {
-        bot.local_storage.write().await.entities.insert(p.id.0, entity);
-      }
+      bot.lock_storage(|storage| {
+        storage.entities.insert(p.id.0, entity);
+      }).await;
     }
     ClientboundGamePacket::RemoveEntities(p) => {
       let mut ids = Vec::new();
       p.entity_ids.iter().for_each(|id| ids.push(id.0));
 
-      if let Some(shared_storage) = &bot.shared_storage {
-        match shared_storage.try_write() {
-          Ok(mut guard) => {
-            guard.entities.retain(|id, _| !ids.contains(id));
-          }
-          Err(_) => {}
-        }
-      } else {
-        bot.local_storage.write().await.entities.retain(|id, _| !ids.contains(id));
-      }
+      bot.lock_storage(|storage| {
+        storage.entities.retain(|id, _| !ids.contains(id));
+      }).await;
     }
     ClientboundGamePacket::LevelChunkWithLight(p) => {
       let chunk_data = p.chunk_data.data.to_vec();
 
-      if let Some(shared_storage) = &bot.shared_storage {
-        match shared_storage.try_write() {
-          Ok(mut guard) => {
-            guard.load_chunk(p.x, p.z, chunk_data);
+      bot.lock_storage(|storage| {
+        storage.load_chunk(p.x, p.z, chunk_data);
+      }).await;
 
-            bot.emit_event(BotEvent::ChunkLoaded(ChunkPayload {
-              x: p.x,
-              z: p.z,
-              storage: shared_storage.clone(),
-            }));
-          }
-          Err(_) => {}
-        }
-      } else {
-        bot.local_storage.write().await.load_chunk(p.x, p.z, chunk_data);
-
-        bot.emit_event(BotEvent::ChunkLoaded(ChunkPayload {
-          x: p.x,
-          z: p.z,
-          storage: bot.local_storage.clone(),
-        }));
-      }
+      bot.emit_event(BotEvent::ChunkLoaded(ChunkPayload {
+        x: p.x,
+        z: p.z,
+      }));
     }
     ClientboundGamePacket::ForgetLevelChunk(p) => {
       let chunk_pos = ChunkPos::new(p.pos.x, p.pos.z);
 
-      if let Some(shared_storage) = &bot.shared_storage {
-        match shared_storage.try_write() {
-          Ok(mut guard) => {
-            guard.remove_chunk(&chunk_pos);
-          }
-          Err(_) => {}
-        }
-      } else {
-        bot.local_storage.write().await.remove_chunk(&chunk_pos);
-      }
+      bot.lock_storage(|storage| {
+        storage.remove_chunk(&chunk_pos);
+      }).await;
     }
     ClientboundGamePacket::BlockUpdate(p) => {
       let pos = BlockPos::new(p.pos.x, p.pos.y, p.pos.z);
       let block_state = p.block_state.id() as u32;
 
-      if let Some(shared_storage) = &bot.shared_storage {
-        match shared_storage.try_write() {
-          Ok(mut guard) => {
-            guard.set_block(&pos, block_state);
-          }
-          Err(_) => {}
-        }
-      } else {
-        bot.local_storage.write().await.set_block(&pos, block_state);
-      }
+      bot.lock_storage(|storage| {
+        storage.set_block(&pos, block_state);
+      }).await;
     }
     ClientboundGamePacket::SectionBlocksUpdate(p) => {
+      let mut blocks = HashMap::new();
+
       for state in &p.states {
         let local_x = state.pos.x as i32;
         let local_y = state.pos.y as i32;
@@ -134,17 +95,12 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
 
         let block_state = state.state.id() as u32;
 
-        if let Some(shared_storage) = &bot.shared_storage {
-          match shared_storage.try_write() {
-            Ok(mut guard) => {
-              guard.set_block(&pos, block_state);
-            }
-            Err(_) => {}
-          }
-        } else {
-          bot.local_storage.write().await.set_block(&pos, block_state);
-        }
+        blocks.insert(pos, block_state);
       }
+
+      bot.lock_storage(|storage| {
+        storage.set_block_section(blocks);
+      }).await;
     }
     ClientboundGamePacket::Login(p) => {
       let profile = &mut bot.components.profile;
@@ -171,40 +127,16 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
         return Ok(true);
       }
 
-      if let Some(shared_storage) = &bot.shared_storage {
-        match shared_storage.try_write() {
-          Ok(mut guard) => {
-            if let Some(entity) = guard.entities.get_mut(&p.entity_id.0) {
-              entity.position.apply_velocity(Velocity::from_vec3(p.delta.clone().into()));
-              entity.on_ground = p.on_ground;
-            }
-          }
-          Err(_) => {}
-        }
-      } else {
-        if let Some(entity) = bot.local_storage.write().await.entities.get_mut(&p.entity_id.0) {
+      bot.lock_storage(|storage| {
+        if let Some(entity) = storage.entities.get_mut(&p.entity_id.0) {
           entity.position.apply_velocity(Velocity::from_vec3(p.delta.clone().into()));
           entity.on_ground = p.on_ground;
         }
-      }
+      }).await;
     }
     ClientboundGamePacket::MoveEntityRot(p) => {
-      if let Some(shared_storage) = &bot.shared_storage {
-        match shared_storage.try_write() {
-          Ok(mut guard) => {
-            if let Some(entity) = guard.entities.get_mut(&p.entity_id.0) {
-              entity.on_ground = p.on_ground;
-
-              let yaw = entity.rotation.yaw + p.y_rot as f32;
-              let pitch = entity.rotation.pitch + p.x_rot as f32;
-
-              entity.rotation = Rotation::new(yaw, pitch);
-            }
-          }
-          Err(_) => {}
-        }
-      } else {
-        if let Some(entity) = bot.local_storage.write().await.entities.get_mut(&p.entity_id.0) {
+      bot.lock_storage(|storage| {
+        if let Some(entity) = storage.entities.get_mut(&p.entity_id.0) {
           entity.on_ground = p.on_ground;
 
           let yaw = entity.rotation.yaw + p.y_rot as f32;
@@ -212,26 +144,11 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
 
           entity.rotation = Rotation::new(yaw, pitch);
         }
-      }
+      }).await;
     }
     ClientboundGamePacket::MoveEntityPosRot(p) => {
-      if let Some(shared_storage) = &bot.shared_storage {
-        match shared_storage.try_write() {
-          Ok(mut guard) => {
-            if let Some(entity) = guard.entities.get_mut(&p.entity_id.0) {
-              entity.position.apply_velocity(Velocity::from_vec3(p.delta.clone().into()));
-              entity.on_ground = p.on_ground;
-
-              let yaw = entity.rotation.yaw + p.y_rot as f32;
-              let pitch = entity.rotation.pitch + p.x_rot as f32;
-
-              entity.rotation = Rotation::new(yaw, pitch);
-            }
-          }
-          Err(_) => {}
-        }
-      } else {
-        if let Some(entity) = bot.local_storage.write().await.entities.get_mut(&p.entity_id.0) {
+      bot.lock_storage(|storage| {
+        if let Some(entity) = storage.entities.get_mut(&p.entity_id.0) {
           entity.position.apply_velocity(Velocity::from_vec3(p.delta.clone().into()));
           entity.on_ground = p.on_ground;
 
@@ -240,38 +157,15 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
 
           entity.rotation = Rotation::new(yaw, pitch);
         }
-      }
+      }).await;
     }
     ClientboundGamePacket::PlayerInfoUpdate(p) => {
-      let profile = &mut bot.components.profile;
-
       for entry in &p.entries {
         if entry.profile.name == bot.account.username {
-          profile.ping = entry.latency;
+          bot.components.profile.ping = entry.latency;
         } else {
-          if let Some(shared_storage) = &bot.shared_storage {
-            match shared_storage.try_write() {
-              Ok(mut guard) => {
-                for (_id, entity) in &mut guard.entities {
-                  if entity.uuid != entry.profile.uuid {
-                    continue;
-                  }
-
-                  let player_info = PlayerInfo {
-                    username: entry.profile.name.clone(),
-                    game_mode: entry.game_mode.name().to_string(),
-                    ping: entry.latency,
-                  };
-
-                  entity.player_info = Some(player_info);
-                }
-              }
-              Err(_) => {}
-            }
-          } else {
-            let storage = &mut bot.local_storage;
-
-            for (_id, entity) in &mut storage.write().await.entities {
+          bot.lock_storage(|storage| {
+            for (_id, entity) in &mut storage.entities {
               if entity.uuid != entry.profile.uuid {
                 continue;
               }
@@ -284,7 +178,7 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
 
               entity.player_info = Some(player_info);
             }
-          }
+          }).await;
         }
       }
     }
@@ -311,20 +205,11 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
       if bot.is_this_my_entity_id(p.id.0) {
         bot.components.velocity = Velocity::from_vec3(p.delta.to_vec3());
       } else {
-        if let Some(shared_storage) = &bot.shared_storage {
-          match shared_storage.try_write() {
-            Ok(mut guard) => {
-              if let Some(entity) = guard.entities.get_mut(&p.id.0) {
-                entity.velocity = Velocity::from_vec3(p.delta.to_vec3());
-              }
-            }
-            Err(_) => {}
-          }
-        } else {
-          if let Some(entity) = bot.local_storage.write().await.entities.get_mut(&p.id.0) {
+        bot.lock_storage(|storage| {
+          if let Some(entity) = storage.entities.get_mut(&p.id.0) {
             entity.velocity = Velocity::from_vec3(p.delta.to_vec3());
           }
-        }
+        }).await;
       }
     }
     ClientboundGamePacket::EntityPositionSync(p) => {
@@ -332,26 +217,14 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
         return Ok(true);
       }
 
-      if let Some(shared_storage) = &bot.shared_storage {
-        match shared_storage.try_write() {
-          Ok(mut guard) => {
-            if let Some(entity) = guard.entities.get_mut(&p.id.0) {
-              entity.position = Position::from_vec3(p.values.pos);
-              entity.velocity = Velocity::from_vec3(p.values.delta);
-              entity.rotation = Rotation::from_look_direction(p.values.look_direction);
-              entity.on_ground = p.on_ground;
-            }
-          }
-          Err(_) => {}
-        }
-      } else {
-        if let Some(entity) = bot.local_storage.write().await.entities.get_mut(&p.id.0) {
+      bot.lock_storage(|storage| {
+        if let Some(entity) = storage.entities.get_mut(&p.id.0) {
           entity.position = Position::from_vec3(p.values.pos);
           entity.velocity = Velocity::from_vec3(p.values.delta);
           entity.rotation = Rotation::from_look_direction(p.values.look_direction);
           entity.on_ground = p.on_ground;
         }
-      }
+      }).await;
     }
     ClientboundGamePacket::KeepAlive(p) => {
       let Some(conn) = &mut bot.connection else {

@@ -10,7 +10,7 @@ mod tests {
   use nurtex::bot::transmitter::BotPackage;
   use nurtex::swarm::SwarmObject;
   use nurtex::utils::time::sleep;
-  use nurtex::{create_shared_swarm_with_package, destroy_shared_swarm, launch_shared_swarm};
+  use nurtex::{create_shared_swarm_with_package, launch_shared_swarm};
 
   #[derive(Debug, Clone)]
   struct MyPackage {
@@ -31,7 +31,7 @@ mod tests {
   async fn launch_swarm() -> io::Result<()> {
     let mut objects = Vec::new();
 
-    for i in 0..=5 {
+    for i in 0..=50 {
       let mut event_invoker = EventInvoker::new();
 
       event_invoker.on_spawn(|terminal| async move {
@@ -50,7 +50,7 @@ mod tests {
           reconnect_delay: 1000,
         },
         ..Default::default()
-      });
+      }).set_transmitter_interval(5000);
 
       objects.push(object);
     }
@@ -65,17 +65,18 @@ mod tests {
       }
     });
 
-    launch_shared_swarm(swarm.clone(), "localhost", 25565, 25);
+    launch_shared_swarm(swarm.clone(), "localhost", 25565, 50);
 
-    sleep(8000).await;
+    sleep(16000).await;
 
-    swarm.read().await.for_each(|terminal| async move {
+    swarm.read().await.for_each_async(|terminal| async move {
       terminal.reconnect("localhost", 25565, 1000).await;
-    });
+      sleep(500).await;
+    }).await;
 
-    sleep(8000).await;
+    sleep(16000).await;
 
-    destroy_shared_swarm(swarm).await?;
+    swarm.write().await.force_destroy();
 
     Ok(())
   }

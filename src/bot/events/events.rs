@@ -3,10 +3,7 @@ use std::sync::Arc;
 use azalea_protocol::packets::game::ClientboundGamePacket;
 use uuid::Uuid;
 
-use crate::bot::{
-  components::{position::Position, rotation::Rotation},
-  world::StorageLock,
-};
+use crate::bot::components::{position::Position, rotation::Rotation};
 
 #[derive(Debug, Clone)]
 pub struct DisconnectPayload {
@@ -45,7 +42,6 @@ pub struct PacketPayload {
 pub struct ChunkPayload {
   pub x: i32,
   pub z: i32,
-  pub storage: StorageLock,
 }
 
 #[derive(Debug, Clone)]

@@ -109,7 +109,7 @@ impl<P: BotPackage> Bot<P> {
   /// bot.connect_to("server.com", 25565).await?;
   /// ```
   pub fn create(account: BotAccount) -> Self {
-    let (sender, receiver) = mpsc::channel(25);
+    let (sender, receiver) = mpsc::channel(100); // Увеличено с 25 до 100 для лучшей производительности
 
     let bot_account = Arc::new(account);
 
@@ -127,7 +127,7 @@ impl<P: BotPackage> Bot<P> {
       plugins: BotPlugins::default(),
       information: BotInformation::default(),
       physics: Physics::default(),
-      transmitter: Arc::new(BotTransmitter::new(10)),
+      transmitter: Arc::new(BotTransmitter::new(50)), // Увеличено с 10 до 50 для swarm
       transmitter_interval: 500,
       connection_timeout: 14000,
       proxy: None,
@@ -407,11 +407,32 @@ impl<P: BotPackage> Bot<P> {
     Ok(())
   }
 
+  /// Метод блокировки хранилища (local / shared)
+  pub async fn lock_storage<F>(&self, f: F)
+  where
+    F: FnOnce(&mut Storage)
+  {
+    if let Some(shared_storage) = &self.shared_storage {
+      if let Ok(mut guard) = timeout(
+        Duration::from_millis(10),
+        shared_storage.write()
+      ).await {
+        f(&mut *guard);
+      }
+    } else {
+      if let Ok(mut guard) = timeout(
+        Duration::from_millis(10),
+        self.local_storage.write()
+      ).await {
+        f(&mut *guard);
+      }
+    }
+  }
+
   /// Метод очистки данных бота
   pub async fn clear(&mut self) {
     let mut storage = self.local_storage.write().await;
-    storage.entities.clear();
-    storage.entities.shrink_to_fit();
+    storage.clear();
   }
 
   /// Метод закрытия TcpStream (отключение от сервера)

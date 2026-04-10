@@ -202,9 +202,7 @@ impl<P: BotPackage> Swarm<P> {
       handle.abort();
     }
 
-    self.bots.clear();
-    self.terminals.clear();
-    self.handles.clear();
+    self.clear();
   }
 
   /// Метод принудительного уничтожения роя без ожидания
@@ -213,6 +211,11 @@ impl<P: BotPackage> Swarm<P> {
       handle.abort();
     }
 
+    self.clear();
+  }
+
+  /// Метод очистки данных роя
+  fn clear(&mut self) {
     self.bots.clear();
     self.terminals.clear();
     self.handles.clear();
