@@ -1,9 +1,9 @@
 use std::io;
 
 use nurtex::bot::account::BotAccount;
+use nurtex::swarm::SwarmObject;
 use nurtex::utils::time::sleep;
 use nurtex::{create_shared_swarm, destroy_shared_swarm, launch_shared_swarm};
-use nurtex::swarm::SwarmObject;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
