@@ -1,2 +1,3 @@
-pub mod command;
-pub mod packet;
+mod packet;
+
+pub use packet::*;
