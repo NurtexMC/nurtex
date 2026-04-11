@@ -48,7 +48,7 @@ mod tests {
       println!("Ротация бота {} обновлена: {:?} -> {:?}", terminal.username, payload.old_rotation, payload.rotation);
     });
 
-    event_invoker.on_chat(move |terminal, payload| async move {
+    event_invoker.on_chat(|terminal, payload| async move {
       println!("Бот {} получил сообщение: {}", terminal.username, payload.message);
 
       if payload.message.contains("reconnect") {

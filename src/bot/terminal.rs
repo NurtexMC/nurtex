@@ -42,7 +42,7 @@ pub enum BotCommand {
 /// ```
 #[derive(Clone)]
 pub struct BotTerminal {
-  /// Юзернейм получателя (или же бота)
+  /// Юзернейм бота 
   pub username: String,
 
   /// Отправитель команд

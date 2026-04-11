@@ -209,7 +209,6 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
       bot.update_rotation(Rotation::new(p.y_rot, p.x_rot));
     }
     ClientboundGamePacket::PlayerPosition(p) => {
-      println!("Server teleported bot to: {:.2}, {:.2}, {:.2}", p.change.pos.x, p.change.pos.y, p.change.pos.z);
       bot.update_position(Position::new(p.change.pos.x, p.change.pos.y, p.change.pos.z));
       bot.update_rotation(Rotation::from_look_direction(p.change.look_direction));
 

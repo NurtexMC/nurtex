@@ -5,9 +5,14 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use std::time::Duration;
 
+use azalea_core::direction::Direction;
+use azalea_core::position::{BlockPos, Vec3};
+use azalea_entity::LookDirection;
+use azalea_protocol::common::movements::MoveFlags;
 use azalea_protocol::connect::{Connection, Proxy};
 use azalea_protocol::packets::game::s_chat::LastSeenMessagesUpdate;
-use azalea_protocol::packets::game::{ClientboundGamePacket, ServerboundChat, ServerboundGamePacket};
+use azalea_protocol::packets::game::s_player_action::Action;
+use azalea_protocol::packets::game::{ClientboundGamePacket, ServerboundChat, ServerboundGamePacket, ServerboundMovePlayerPos, ServerboundMovePlayerRot, ServerboundPlayerAction, ServerboundSwing, ServerboundUseItem};
 use azalea_protocol::packets::handshake::s_intention::ServerboundIntention;
 use azalea_protocol::packets::handshake::{ClientboundHandshakePacket, ServerboundHandshakePacket};
 use azalea_protocol::packets::login::s_hello::ServerboundHello;
@@ -25,8 +30,7 @@ use crate::bot::components::rotation::Rotation;
 use crate::bot::events::{BotEvent, EventInvoker, PacketPayload, RotationPayload};
 use crate::bot::events::{DisconnectPayload, PositionPayload};
 use crate::bot::handlers::base::{process_configuration, process_login};
-use crate::bot::handlers::custom::command::{CommandProcessorFn, default_command_processor};
-use crate::bot::handlers::custom::packet::{PacketProcessorFn, default_packet_processor};
+use crate::bot::handlers::custom::{PacketProcessorFn, default_packet_processor};
 use crate::bot::options::{BotInformation, BotPlugins, BotStatus};
 use crate::bot::physics::Physics;
 use crate::bot::terminal::{BotCommand, BotTerminal};
@@ -86,7 +90,6 @@ pub struct Bot<P: BotPackage = NullPackage> {
   event_sender: broadcast::Sender<BotEvent>,
   command_receiver: mpsc::Receiver<BotCommand>,
   packet_processor: PacketProcessorFn<P>,
-  command_processor: CommandProcessorFn<P>,
   event_invoker: Arc<EventInvoker>,
 }
 
@@ -135,7 +138,6 @@ impl<P: BotPackage> Bot<P> {
       event_sender: event_tx,
       command_receiver: command_rx,
       packet_processor: default_packet_processor,
-      command_processor: default_command_processor,
       event_invoker: Arc::new(EventInvoker::new()),
     };
 
@@ -199,12 +201,6 @@ impl<P: BotPackage> Bot<P> {
     self
   }
 
-  /// Метод установки обработчика команд
-  pub fn set_command_processor(mut self, processor: CommandProcessorFn<P>) -> Self {
-    self.command_processor = processor;
-    self
-  }
-
   /// Метод установки инициатора событий
   pub fn set_event_invoker(mut self, invoker: EventInvoker) -> Self {
     self.event_invoker = Arc::new(invoker);
@@ -224,6 +220,7 @@ impl<P: BotPackage> Bot<P> {
 
     tokio::spawn(async move {
       while let Ok(event) = receiver.recv().await {
+        println!("Событие: {:?}", event); // DEBUG
         invoker.trigger(terminal.clone(), event).await;
       }
     });
@@ -231,7 +228,9 @@ impl<P: BotPackage> Bot<P> {
 
   /// Метод отправки события всем получателям
   pub fn emit_event(&self, event: BotEvent) {
-    let _ = self.event_sender.send(event);
+    if self.event_sender.receiver_count() > 0 {
+      let _ = self.event_sender.send(event);
+    }
   }
 
   /// Метод создания подключения
@@ -386,7 +385,7 @@ impl<P: BotPackage> Bot<P> {
 
         // Обработка внешней команды
         Some(command) = self.command_receiver.recv() => {
-          match (self.command_processor)(self, command).await {
+          match Box::pin(self.process_command(command)).await {
             Ok(true) => continue,
             Ok(false) => return Ok(()),
             Err(e) => return Err(e),
@@ -606,5 +605,81 @@ impl<P: BotPackage> Bot<P> {
   /// Метод получения передатчика пакетов
   pub fn get_transmitter(&self) -> Arc<BotTransmitter<P>> {
     self.transmitter.clone()
+  }
+
+  /// Метод обработки внешней команды
+  async fn process_command(&mut self, command: BotCommand) -> io::Result<bool> {
+    let Some(conn) = &mut self.connection else {
+      return Err(Error::new(ErrorKind::NotConnected, "Connection could not be obtained"));
+    };
+
+    match command {
+      BotCommand::Chat(message) => {
+        self.chat(message).await?;
+      }
+      BotCommand::SetDirection { yaw, pitch } => {
+        conn
+          .write(ServerboundGamePacket::MovePlayerRot(ServerboundMovePlayerRot {
+            look_direction: LookDirection::new(yaw, pitch),
+            flags: MoveFlags {
+              on_ground: self.physics.on_ground,
+              horizontal_collision: false,
+            },
+          }))
+          .await?;
+      }
+      BotCommand::SetPosition { x, y, z } => {
+        conn
+          .write(ServerboundGamePacket::MovePlayerPos(ServerboundMovePlayerPos {
+            pos: Vec3::new(x, y, z),
+            flags: MoveFlags {
+              on_ground: self.physics.on_ground,
+              horizontal_collision: false,
+            },
+          }))
+          .await?;
+      }
+      BotCommand::SwingArm(hand) => {
+        conn.write(ServerboundGamePacket::Swing(ServerboundSwing { hand })).await?;
+      }
+      BotCommand::StartUseItem(hand) => {
+        let rotation = self.components.rotation;
+
+        conn
+          .write(ServerboundGamePacket::UseItem(ServerboundUseItem {
+            hand: hand,
+            seq: 0,
+            y_rot: rotation.yaw,
+            x_rot: rotation.pitch,
+          }))
+          .await?;
+      }
+      BotCommand::ReleaseUseItem => {
+        conn
+          .write(ServerboundGamePacket::PlayerAction(ServerboundPlayerAction {
+            action: Action::ReleaseUseItem,
+            pos: BlockPos::new(0, 0, 0),
+            direction: Direction::Down,
+            seq: 0,
+          }))
+          .await?;
+      }
+      BotCommand::SendPacket(packet) => {
+        conn.write(packet).await?;
+      }
+      BotCommand::Disconnect => {
+        self.disconnect().await?;
+        return Ok(false);
+      }
+      BotCommand::Reconnect {
+        server_host,
+        server_port,
+        interval,
+      } => {
+        self.reconnect(&server_host, server_port, interval).await?;
+      }
+    }
+
+    Ok(true)
   }
 }
