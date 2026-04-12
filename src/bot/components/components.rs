@@ -39,7 +39,7 @@ impl BotComponents {
 
     self.position.apply_velocity(self.velocity);
 
-    physics.send_movement_packets(conn, self.position, self.rotation).await?;
+    physics.send_movement_packets(conn, self.position, self.rotation, &mut self.velocity).await?;
 
     Ok(())
   }
