@@ -220,7 +220,6 @@ impl<P: BotPackage> Bot<P> {
 
     tokio::spawn(async move {
       while let Ok(event) = receiver.recv().await {
-        println!("Событие: {:?}", event); // DEBUG
         invoker.trigger(terminal.clone(), event).await;
       }
     });
