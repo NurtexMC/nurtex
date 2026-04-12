@@ -1,6 +1,5 @@
 use std::io;
 
-use azalea_core::position::ChunkPos;
 use azalea_protocol::{
   common::movements::MoveFlags,
   connect::Connection,
@@ -10,12 +9,16 @@ use azalea_protocol::{
 use crate::bot::components::{position::Position, rotation::Rotation, velocity::Velocity};
 use crate::bot::world::Storage;
 
+const GRAVITY: f64 = 0.08;
+const AIR_RESISTANCE: f64 = 0.98;
+
 #[derive(Debug)]
 pub struct Physics {
   pub on_ground: bool,
   pub last_on_ground: bool,
   pub last_sent_position: Position,
   pub last_sent_rotation: Rotation,
+  pub fall_distance: f64,
 }
 
 impl Default for Physics {
@@ -25,6 +28,7 @@ impl Default for Physics {
       last_on_ground: false,
       last_sent_position: Position::zero(),
       last_sent_rotation: Rotation::zero(),
+      fall_distance: 0.0,
     }
   }
 }
@@ -32,21 +36,20 @@ impl Default for Physics {
 impl Physics {
   /// Метод применения физики
   pub fn apply_physics(&mut self, velocity: &mut Velocity, position: &Position, storage: &Storage) {
-    let new_on_ground = storage.is_on_ground(&position.to_vec3());
+    self.on_ground = storage.is_on_ground(&position.to_vec3());
 
-    let pos_vec = position.to_vec3();
-    let chunk_pos = ChunkPos::new((pos_vec.x.floor() as i32) >> 4, (pos_vec.z.floor() as i32) >> 4);
-
-    if storage.is_chunk_loaded(&chunk_pos) {
-      self.on_ground = new_on_ground;
+    if self.on_ground {
+      self.fall_distance = 0.0;
+    } else {
+      self.fall_distance += velocity.y.abs();
     }
 
-    self.apply_gravity(velocity);
     self.apply_friction(velocity);
+    self.apply_gravity(velocity);
   }
 
   /// Метод отправки пакета движения серверу
-  pub async fn send_movement_packets(&mut self, conn: &mut Connection<ClientboundGamePacket, ServerboundGamePacket>, position: Position, rotation: Rotation) -> io::Result<()> {
+  pub async fn send_movement_packets(&mut self, conn: &mut Connection<ClientboundGamePacket, ServerboundGamePacket>, position: Position, rotation: Rotation, _velocity: &Velocity) -> io::Result<()> {
     let pos_delta = position.delta(self.last_sent_position);
     let is_pos_changed = pos_delta != Position::zero();
 
@@ -118,8 +121,8 @@ impl Physics {
   /// Метод применения гравитации
   fn apply_gravity(&mut self, velocity: &mut Velocity) {
     if !self.on_ground {
-      velocity.y -= 0.08;
-      velocity.y *= 0.98;
+      velocity.y -= GRAVITY;
+      velocity.y *= AIR_RESISTANCE;
     } else {
       if velocity.y < 0.0 {
         velocity.y = 0.0;
@@ -129,10 +132,9 @@ impl Physics {
 
   /// Метод применения трения
   fn apply_friction(&mut self, velocity: &mut Velocity) {
-    let inertia = if self.on_ground { 0.546 } else { 0.91 };
+    let friction = if self.on_ground { 0.6 } else { 0.98 };
 
-    velocity.x *= inertia;
-    velocity.z *= inertia;
-    velocity.y *= 0.98;
+    velocity.x *= friction;
+    velocity.z *= friction;
   }
 }

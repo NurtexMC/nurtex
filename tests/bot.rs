@@ -11,11 +11,15 @@ mod tests {
   #[derive(Debug, Clone)]
   struct MyPackage {
     position: Position,
+    on_ground: bool,
   }
 
   impl BotPackage for MyPackage {
     fn describe<P: BotPackage>(bot: &Bot<P>) -> Self {
-      Self { position: bot.get_position() }
+      Self { 
+        position: bot.get_position(),
+        on_ground: bot.physics.on_ground
+      }
     }
   }
 
@@ -23,14 +27,14 @@ mod tests {
   async fn launch_bot() -> io::Result<()> {
     let bot = create_bot_with_package::<MyPackage>("NurtexBot");
 
-    let username = bot.username.clone();
     let transmitter = bot.get_transmitter();
 
     tokio::spawn(async move {
       let mut receiver = transmitter.subscribe();
 
       while let Ok(package) = receiver.recv().await {
-        println!("Позиция бота {}: {:?}", username, package.position);
+        println!("Позиция бота: {:?}", package.position);
+        println!("Состояние on_ground: {}", package.on_ground);
       }
     });
 
@@ -64,7 +68,7 @@ mod tests {
       println!("Бот {} отключился по причине: {}", terminal.username, payload.reason);
     });
 
-    bot.set_event_invoker(event_invoker).connect_to("localhost", 25565).await?;
+    bot.set_transmitter_interval(2000).set_event_invoker(event_invoker).connect_to("localhost", 25565).await?;
 
     Ok(())
   }

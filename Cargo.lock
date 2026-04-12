@@ -1978,11 +1978,13 @@ dependencies = [
 name = "nurtex"
 version = "0.5.1"
 dependencies = [
+ "azalea-block",
  "azalea-buf",
  "azalea-core",
  "azalea-crypto",
  "azalea-entity",
  "azalea-protocol",
+ "azalea-world",
  "hashbrown",
  "socks5-impl 0.7.3",
  "tokio",

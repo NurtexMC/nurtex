@@ -113,11 +113,6 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
     }
     ClientboundGamePacket::Login(p) => {
       bot.emit_event(BotEvent::Spawn);
-      
-      let profile = &mut bot.components.profile;
-
-      profile.entity_id = Some(p.player_id.0);
-      profile.game_mode = p.common.game_type.name().to_string();
 
       if p.show_death_screen && bot.plugins.auto_respawn.enabled {
         let Some(conn) = &mut bot.connection else {
@@ -130,6 +125,11 @@ async fn process_packet<P: BotPackage>(bot: &mut Bot<P>, packet: Arc<Clientbound
           }))
           .await?;
       }
+      
+      let profile = &mut bot.components.profile;
+
+      profile.entity_id = Some(p.player_id.0);
+      profile.game_mode = p.common.game_type.name().to_string();
     }
     ClientboundGamePacket::MoveEntityPos(p) => {
       if bot.is_this_my_entity_id(p.entity_id.0) {
