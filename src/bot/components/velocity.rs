@@ -22,8 +22,8 @@ impl Velocity {
   /// Метод получения дельты
   pub fn delta(&self, other: Self) -> Self {
     let dx = self.x - other.x;
-    let dy = self.x - other.y;
-    let dz = self.x - other.z;
+    let dy = self.y - other.y;
+    let dz = self.z - other.z;
 
     Self { x: dx, y: dy, z: dz }
   }
