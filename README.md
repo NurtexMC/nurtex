@@ -9,12 +9,12 @@ Supported Minecraft version: `1.21.11` (or protocol version - `774`).
 To use this library in your code, add a dependency to the Cargo.toml:
 
 ```
-nurtex = "0.5.0"
+nurtex = "0.5.1"
 ```
 
 # Examples
 
-All current examples can be found here: [browse](https://github.com/nullclyze/NurtexMC/tree/main/examples)
+All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/examples)
 
 ## Creating a bot
 
