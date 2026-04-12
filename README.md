@@ -4,6 +4,26 @@ This is a library written in Rust that allows you to create Minecraft bots and m
 
 Supported Minecraft version: `1.21.11` (or protocol version - `774`).
 
+# Tasks
+
+- [x] Connecting to servers
+- [x] Login processing
+- [x] Configuration processing
+- [x] Processing of core game packets
+- [ ] Processing of all game packets
+- [x] Entity storage
+- [x] Chunk storage
+- [x] Ability to add handlers
+- [x] Implementation of physics (partial and simplified)
+- [ ] Interaction with inventory
+- [ ] Interaction with entities
+- [x] Bot control
+- [x] Bot customization
+- [x] Swarm architecture
+- [x] Swarm control
+- [x] Swarm customization
+- [ ] Bypassing bot checks
+
 # Usage
 
 To use this library in your code, add a dependency to the Cargo.toml:
