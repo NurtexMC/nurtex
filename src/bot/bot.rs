@@ -421,12 +421,10 @@ impl<P: BotPackage> Bot<P> {
     if let Some(shared_storage) = &self.shared_storage {
       if let Ok(mut guard) = timeout(Duration::from_millis(10), shared_storage.write()).await {
         f(&mut *guard);
-        drop(guard);
       }
     } else {
       if let Ok(mut guard) = timeout(Duration::from_millis(10), self.local_storage.write()).await {
         f(&mut *guard);
-        drop(guard);
       }
     }
   }
