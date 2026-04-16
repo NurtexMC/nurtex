@@ -1,0 +1,20 @@
+[package]
+name = "nurtex-codec"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Library for serializing types from the Minecraft protocol."
+repository = "https://github.com/NurtexMC/nurtex"
+homepage = "https://github.com/NurtexMC/nurtex"
+documentation = "https://docs.rs/nurtex-codec/latest/"
+readme = "README.md"
+keywords = ["minecraft", "codec", "serde"]
+categories = ["games"]
+
+[lib]
+name = "nurtex_codec"
+path = "src/lib.rs"
+
+[dependencies]
+uuid = { workspace = true }
+byteorder = { workspace = true }

@@ -1,0 +1,18 @@
+# `nurtex-protocol`
+
+Library that allows a Minecraft client to communicate with a server.
+
+> [!IMPORTANT]
+> This library is in early development and may be very unstable, have limited built-in functionality, etc. We recommend reporting any bugs in the issues.
+
+
+# Examples
+
+Examples of use can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex-protocol/examples)
+
+
+# Packet types
+
+1. `Clientside` - packets that the client receives from the server.
+2. `Serverside` - packets that are sent from the client to the server.
+3. `Multiside` - packets that can be sent from the server to the client and vice versa (meaning they have the same structure).
