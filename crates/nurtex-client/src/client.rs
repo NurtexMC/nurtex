@@ -5,11 +5,11 @@ use nurtex_protocol::connection::NurtexConnection;
 use nurtex_protocol::connection::address::convert_address;
 use nurtex_protocol::connection::utils::handle_encryption_request;
 use nurtex_protocol::connection::{ClientsidePacket, ConnectionState};
-use nurtex_protocol::packets::configuration::{ResourcePackState, ServersideResourcePackResponse};
-use nurtex_protocol::packets::play::ServersidePlayPacket;
 use nurtex_protocol::packets::configuration::{ClientsideConfigurationPacket, ServersideAcknowledgeFinishConfiguration, ServersideConfigurationPacket, ServersideKnownPacks};
+use nurtex_protocol::packets::configuration::{ResourcePackState, ServersideResourcePackResponse};
 use nurtex_protocol::packets::handshake::{ClientIntention, ServersideGreet, ServersideHandshakePacket};
 use nurtex_protocol::packets::login::{ClientsideLoginPacket, ServersideLoginAcknowledged, ServersideLoginPacket, ServersideLoginStart};
+use nurtex_protocol::packets::play::ServersidePlayPacket;
 use tokio::sync::{RwLock, broadcast};
 use uuid::Uuid;
 

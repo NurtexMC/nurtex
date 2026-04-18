@@ -11,7 +11,7 @@ pub struct ClientInfo {
   pub main_hand: ClientHand,
   pub enable_text_filtering: bool,
   pub allow_server_listings: bool,
-  pub particle_status: ParticleStatus
+  pub particle_status: ParticleStatus,
 }
 
 impl Default for ClientInfo {
@@ -52,7 +52,7 @@ impl ClientInfo {
 pub enum ChatMode {
   Enabled,
   CommandsOnly,
-  Hidden
+  Hidden,
 }
 
 impl ChatMode {
@@ -75,7 +75,7 @@ pub struct DisplayedSkinParts {
   pub right_sleeve: bool,
   pub left_pants_leg: bool,
   pub right_pants_leg: bool,
-  pub hat: bool
+  pub hat: bool,
 }
 
 impl Default for DisplayedSkinParts {
@@ -87,7 +87,7 @@ impl Default for DisplayedSkinParts {
       right_sleeve: true,
       left_pants_leg: true,
       right_pants_leg: true,
-      hat: true
+      hat: true,
     }
   }
 }
@@ -96,15 +96,29 @@ impl DisplayedSkinParts {
   /// Метод получения битовой маски из `DisplayedSkinParts`
   pub fn to_mask(&self) -> u8 {
     let mut mask = 0u8;
-    
-    if self.cape { mask |= 0x01; }
-    if self.jacket { mask |= 0x02; }
-    if self.left_sleeve { mask |= 0x04; }
-    if self.right_sleeve { mask |= 0x08; }
-    if self.left_pants_leg { mask |= 0x10; }
-    if self.right_pants_leg { mask |= 0x20; }
-    if self.hat { mask |= 0x40; }
-    
+
+    if self.cape {
+      mask |= 0x01;
+    }
+    if self.jacket {
+      mask |= 0x02;
+    }
+    if self.left_sleeve {
+      mask |= 0x04;
+    }
+    if self.right_sleeve {
+      mask |= 0x08;
+    }
+    if self.left_pants_leg {
+      mask |= 0x10;
+    }
+    if self.right_pants_leg {
+      mask |= 0x20;
+    }
+    if self.hat {
+      mask |= 0x40;
+    }
+
     mask
   }
 
@@ -126,7 +140,7 @@ impl DisplayedSkinParts {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum ClientHand {
   Left,
-  Right
+  Right,
 }
 
 impl ClientHand {
@@ -144,7 +158,7 @@ impl ClientHand {
 pub enum ParticleStatus {
   All,
   Decreased,
-  Minimal
+  Minimal,
 }
 
 impl ParticleStatus {

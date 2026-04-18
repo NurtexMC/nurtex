@@ -1,8 +1,8 @@
 use std::io;
 
+use nurtex_client::Client;
 use nurtex_protocol::connection::ClientsidePacket;
 use nurtex_protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket};
-use nurtex_client::Client;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
