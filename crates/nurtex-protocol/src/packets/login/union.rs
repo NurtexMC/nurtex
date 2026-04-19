@@ -52,6 +52,12 @@ impl Packet for ClientsideLoginPacket {
   }
 }
 
+impl IntoPacket<ClientsideLoginPacket> for ClientsideLoginPacket {
+  fn sample(self) -> ClientsideLoginPacket {
+    self
+  }
+}
+
 impl IntoPacket<ClientsideLoginPacket> for ClientsideLoginDisconnect {
   fn sample(self) -> ClientsideLoginPacket {
     ClientsideLoginPacket::Disconnect(self)
@@ -85,12 +91,6 @@ impl IntoPacket<ClientsideLoginPacket> for ClientsidePluginRequest {
 impl IntoPacket<ClientsideLoginPacket> for ClientsideCookieRequest {
   fn sample(self) -> ClientsideLoginPacket {
     ClientsideLoginPacket::CookieRequest(self)
-  }
-}
-
-impl IntoPacket<ClientsideLoginPacket> for ClientsideLoginPacket {
-  fn sample(self) -> ClientsideLoginPacket {
-    self
   }
 }
 
@@ -136,6 +136,12 @@ impl Packet for ServersideLoginPacket {
   }
 }
 
+impl IntoPacket<ServersideLoginPacket> for ServersideLoginPacket {
+  fn sample(self) -> ServersideLoginPacket {
+    self
+  }
+}
+
 impl IntoPacket<ServersideLoginPacket> for ServersideLoginStart {
   fn sample(self) -> ServersideLoginPacket {
     ServersideLoginPacket::LoginStart(self)
@@ -163,11 +169,5 @@ impl IntoPacket<ServersideLoginPacket> for ServersideLoginAcknowledged {
 impl IntoPacket<ServersideLoginPacket> for ServersideCookieResponse {
   fn sample(self) -> ServersideLoginPacket {
     ServersideLoginPacket::CookieResponse(self)
-  }
-}
-
-impl IntoPacket<ServersideLoginPacket> for ServersideLoginPacket {
-  fn sample(self) -> ServersideLoginPacket {
-    self
   }
 }

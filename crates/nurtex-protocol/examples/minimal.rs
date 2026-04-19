@@ -10,6 +10,7 @@ use nurtex_protocol::packets::configuration::{
 use nurtex_protocol::packets::handshake::{ClientIntention, ServersideGreet, ServersideHandshakePacket};
 use nurtex_protocol::packets::login::{ClientsideLoginPacket, ServersideLoginAcknowledged, ServersideLoginPacket, ServersideLoginStart};
 use nurtex_protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket};
+use nurtex_protocol::types::{AccurateHand, DisplayedSkinParts};
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -80,8 +81,8 @@ async fn main() -> io::Result<()> {
       view_distance: 10,
       chat_mode: 0,
       chat_colors: true,
-      displayed_skin_parts: 0x7F,
-      main_hand: 1,
+      displayed_skin_parts: DisplayedSkinParts::default(),
+      main_hand: AccurateHand::Right,
       enable_text_filtering: false,
       allow_server_listings: true,
       particle_status: 0,

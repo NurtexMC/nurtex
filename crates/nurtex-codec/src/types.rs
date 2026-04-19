@@ -5,12 +5,9 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use crate::{Buffer, BufferVar, read_byte, read_bytes, read_str, write_str};
+use crate::{Buffer, VarInt, read_bytes, read_str, write_str};
 
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
-
-pub const SEGMENT_BITS: u8 = 0x7F;
-pub const CONTINUE_BIT: u8 = 0x80;
 
 impl Buffer for i32 {
   fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
@@ -22,108 +19,6 @@ impl Buffer for i32 {
   }
 }
 
-impl BufferVar for i32 {
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    let mut value = 0i32;
-    let mut position = 0u32;
-
-    loop {
-      let byte = read_byte(buffer)?;
-      value |= (((byte & SEGMENT_BITS) as u32) << position) as i32;
-
-      if (byte & CONTINUE_BIT) == 0 {
-        break;
-      }
-
-      position += 7;
-
-      if position >= 32 {
-        return None;
-      }
-    }
-
-    Some(value)
-  }
-
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()> {
-    let mut array = [0];
-    let mut value = *self;
-
-    if value == 0 {
-      buffer.write_all(&array)?;
-    }
-
-    while value != 0 {
-      array[0] = (value & SEGMENT_BITS as i32) as u8;
-      value = (value >> 7) & (i32::MAX >> 6);
-
-      if value != 0 {
-        array[0] |= CONTINUE_BIT;
-      }
-
-      buffer.write_all(&array)?;
-    }
-
-    Ok(())
-  }
-}
-
-impl BufferVar for i64 {
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    let mut value = 0i64;
-    let mut position = 0u32;
-
-    loop {
-      let byte = read_byte(buffer)?;
-      value |= (((byte & SEGMENT_BITS) as u32) << position) as i64;
-
-      if (byte & CONTINUE_BIT) == 0 {
-        break;
-      }
-
-      position += 7;
-
-      if position >= 32 {
-        return None;
-      }
-    }
-
-    Some(value)
-  }
-
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()> {
-    let mut array = [0];
-    let mut value = *self;
-
-    if value == 0 {
-      buffer.write_all(&array)?;
-    }
-
-    while value != 0 {
-      array[0] = (value & SEGMENT_BITS as i64) as u8;
-      value = (value >> 7) & (i64::MAX >> 6);
-
-      if value != 0 {
-        array[0] |= CONTINUE_BIT;
-      }
-
-      buffer.write_all(&array)?;
-    }
-
-    Ok(())
-  }
-}
-
-impl BufferVar for u64 {
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    i64::read_varint(buffer).map(|i| i as u64)
-  }
-
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()> {
-    i64::write_varint(&(*self as i64), buffer)
-  }
-}
-
 impl Buffer for u32 {
   fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
     Some(i32::read_buf(buffer)? as u32)
@@ -131,16 +26,6 @@ impl Buffer for u32 {
 
   fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
     i32::write_buf(&(*self as i32), buffer)
-  }
-}
-
-impl BufferVar for u32 {
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    Some(i32::read_varint(buffer)? as u32)
-  }
-
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()> {
-    i32::write_varint(&(*self as i32), buffer)
   }
 }
 
@@ -161,16 +46,6 @@ impl Buffer for i16 {
 
   fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
     buffer.write_i16::<BE>(*self)
-  }
-}
-
-impl BufferVar for u16 {
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    Some(i32::read_varint(buffer)? as u16)
-  }
-
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()> {
-    i32::write_varint(&(*self as i32), buffer)
   }
 }
 
@@ -253,7 +128,7 @@ impl Buffer for f64 {
 
 impl<K: Buffer + Eq + Hash, V: Buffer> Buffer for HashMap<K, V> {
   fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    let length = i32::read_varint(buffer)? as usize;
+    let length = VarInt::read_buf(buffer)?.value() as usize;
     let mut contents = HashMap::with_capacity(usize::min(length, 65536));
 
     for _ in 0..length {
@@ -264,7 +139,7 @@ impl<K: Buffer + Eq + Hash, V: Buffer> Buffer for HashMap<K, V> {
   }
 
   fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
-    u32::write_varint(&(self.len() as u32), buffer)?;
+    VarInt::new(self.len() as i32).write_buf(buffer)?;
 
     for (key, value) in self {
       key.write_buf(buffer)?;
@@ -275,45 +150,21 @@ impl<K: Buffer + Eq + Hash, V: Buffer> Buffer for HashMap<K, V> {
   }
 }
 
-impl<K: Buffer + Eq + Hash, V: BufferVar> BufferVar for HashMap<K, V> {
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    let length = i32::read_varint(buffer)? as usize;
-    let mut contents = HashMap::with_capacity(usize::min(length, 65536));
-
-    for _ in 0..length {
-      contents.insert(K::read_buf(buffer)?, V::read_varint(buffer)?);
-    }
-
-    Some(contents)
-  }
-
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()> {
-    u32::write_varint(&(self.len() as u32), buffer)?;
-
-    for (key, value) in self {
-      key.write_buf(buffer)?;
-      value.write_varint(buffer)?;
-    }
-
-    Ok(())
-  }
-}
-
 impl Buffer for Vec<u8> {
   fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    let length = i32::read_varint(buffer)? as usize;
+    let length = VarInt::read_buf(buffer)?.value() as usize;
     read_bytes(buffer, length).map(|b| b.to_vec())
   }
 
   fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
-    (self.len() as u32).write_varint(buffer)?;
+    VarInt::new(self.len() as i32).write_buf(buffer)?;
     buffer.write_all(self)
   }
 }
 
 impl<T: Buffer> Buffer for Box<[T]> {
   fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    let length = u32::read_varint(buffer)? as usize;
+    let length = VarInt::read_buf(buffer)?.value() as usize;
     let mut contents = Vec::with_capacity(usize::min(length, 65536));
 
     for _ in 0..length {
@@ -324,33 +175,10 @@ impl<T: Buffer> Buffer for Box<[T]> {
   }
 
   fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
-    (self.len() as u32).write_varint(buffer)?;
+    VarInt::new(self.len() as i32).write_buf(buffer)?;
 
     for item in self.iter() {
       T::write_buf(item, buffer)?;
-    }
-
-    Ok(())
-  }
-}
-
-impl<T: BufferVar> BufferVar for Box<[T]> {
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    let length = i32::read_varint(buffer)? as usize;
-    let mut contents = Vec::with_capacity(usize::min(length, 65536));
-
-    for _ in 0..length {
-      contents.push(T::read_varint(buffer)?);
-    }
-
-    Some(contents.into_boxed_slice())
-  }
-
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()> {
-    (self.len() as u32).write_varint(buffer)?;
-
-    for item in self.iter() {
-      T::write_varint(item, buffer)?;
     }
 
     Ok(())
@@ -386,21 +214,6 @@ impl<T: Buffer> Buffer for Option<T> {
     if let Some(s) = self {
       true.write_buf(buffer)?;
       s.write_buf(buffer)
-    } else {
-      false.write_buf(buffer)
-    }
-  }
-}
-
-impl<T: BufferVar> BufferVar for Option<T> {
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    if bool::read_buf(buffer)? { Some(T::read_varint(buffer)) } else { None }
-  }
-
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()> {
-    if let Some(s) = self {
-      true.write_buf(buffer)?;
-      s.write_varint(buffer)
     } else {
       false.write_buf(buffer)
     }

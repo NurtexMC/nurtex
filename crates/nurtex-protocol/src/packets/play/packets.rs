@@ -1,6 +1,8 @@
 use std::io::{self, Cursor, Write};
 
-use nurtex_codec::{Buffer, BufferVar};
+use nurtex_codec::{Buffer, VarInt, VarLong};
+
+use crate::types::{PhysicsFlags, Position, RelativeHand, Rotation, TeleportFlags, Velocity};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MultisideKeepAlive {
@@ -57,108 +59,301 @@ impl ClientsidePingResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ClientsideSyncPlayerPosition {
-  pub teleport_id: i64,
-  pub position_x: f64,
-  pub position_y: f64,
-  pub position_z: f64,
-  pub velocity_x: f64,
-  pub velocity_y: f64,
-  pub velocity_z: f64,
-  pub yaw: f32,
-  pub pitch: f32,
-  pub teleport_flags: TeleportFlags,
+pub struct ClientsideLogin {
+  pub entity_id: i32,
+  pub is_hardcore: bool,
+  pub dimension_names: Vec<String>,
+  pub max_players: i32,
+  pub view_distance: i32,
+  pub simulation_distance: i32,
+  pub reduced_debug_info: bool,
+  pub enable_respawn_screen: bool,
+  pub do_limited_crafting: bool,
+  pub dimension_type: i32,
+  pub dimension_name: String,
+  pub hashed_seed: i64,
+  pub game_mode: u8,
+  pub previous_game_mode: i8,
+  pub is_debug: bool,
+  pub is_flat: bool,
+  pub has_death_location: bool,
+  pub death_dimension_name: Option<String>,
+  pub death_location: Option<Position>,
+  pub portal_cooldown: i32,
+  pub sea_level: i32,
+  pub enforces_secure_chat: bool,
+}
+
+impl ClientsideLogin {
+  pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+    Some(Self {
+      entity_id: i32::read_buf(buffer)?,
+      is_hardcore: bool::read_buf(buffer)?,
+      dimension_names: {
+        let count = VarInt::read_buf(buffer)?.value() as usize;
+        let mut names = Vec::with_capacity(count);
+        for _ in 0..count {
+          names.push(String::read_buf(buffer)?);
+        }
+        names
+      },
+      max_players: VarInt::read_buf(buffer)?.value(),
+      view_distance: VarInt::read_buf(buffer)?.value(),
+      simulation_distance: VarInt::read_buf(buffer)?.value(),
+      reduced_debug_info: bool::read_buf(buffer)?,
+      enable_respawn_screen: bool::read_buf(buffer)?,
+      do_limited_crafting: bool::read_buf(buffer)?,
+      dimension_type: VarInt::read_buf(buffer)?.value(),
+      dimension_name: String::read_buf(buffer)?,
+      hashed_seed: i64::read_buf(buffer)?,
+      game_mode: u8::read_buf(buffer)?,
+      previous_game_mode: i8::read_buf(buffer)?,
+      is_debug: bool::read_buf(buffer)?,
+      is_flat: bool::read_buf(buffer)?,
+      has_death_location: bool::read_buf(buffer)?,
+      death_dimension_name: {
+        if bool::read_buf(buffer)? {
+          Some(String::read_buf(buffer)?)
+        } else {
+          None
+        }
+      },
+      death_location: {
+        if bool::read_buf(buffer)? {
+          Some(Position::read_buf(buffer)?)
+        } else {
+          None
+        }
+      },
+      portal_cooldown: VarInt::read_buf(buffer)?.value(),
+      sea_level: VarInt::read_buf(buffer)?.value(),
+      enforces_secure_chat: bool::read_buf(buffer)?,
+    })
+  }
+
+  pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
+    self.entity_id.write_buf(buffer)?;
+    self.is_hardcore.write_buf(buffer)?;
+    
+    VarInt::new(self.dimension_names.len() as i32).write_buf(buffer)?;
+    for name in &self.dimension_names {
+      name.write_buf(buffer)?;
+    }
+    
+    VarInt::new(self.max_players).write_buf(buffer)?;
+    VarInt::new(self.view_distance).write_buf(buffer)?;
+    VarInt::new(self.simulation_distance).write_buf(buffer)?;
+    self.reduced_debug_info.write_buf(buffer)?;
+    self.enable_respawn_screen.write_buf(buffer)?;
+    self.do_limited_crafting.write_buf(buffer)?;
+    VarInt::new(self.dimension_type).write_buf(buffer)?;
+    
+    self.dimension_name.write_buf(buffer)?;
+    
+    self.hashed_seed.write_buf(buffer)?;
+    self.game_mode.write_buf(buffer)?;
+    self.previous_game_mode.write_buf(buffer)?;
+    self.is_debug.write_buf(buffer)?;
+    self.is_flat.write_buf(buffer)?;
+    self.has_death_location.write_buf(buffer)?;
+    
+    if let Some(ref death_dim) = self.death_dimension_name {
+      true.write_buf(buffer)?;
+      death_dim.write_buf(buffer)?;
+    } else {
+      false.write_buf(buffer)?;
+    }
+    
+    if let Some(ref death_pos) = self.death_location {
+      true.write_buf(buffer)?;
+      death_pos.write_buf(buffer)?;
+    } else {
+      false.write_buf(buffer)?;
+    }
+    
+    VarInt::new(self.portal_cooldown).write_buf(buffer)?;
+    VarInt::new(self.sea_level).write_buf(buffer)?;
+    self.enforces_secure_chat.write_buf(buffer)?;
+    Ok(())
+  }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct TeleportFlags {
-  pub relative_x: bool,
-  pub relative_y: bool,
-  pub relative_z: bool,
+pub struct ClientsideDamageEvent {
+  pub entity_id: i32,
+  pub source_type_id: i32,
+  pub source_cause_id: i32,
+  pub source_direct_id: i32,
+  pub source_position: Position,
+}
+
+impl ClientsideDamageEvent {
+  pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+    Some(Self {
+      entity_id: VarInt::read_buf(buffer)?.value(),
+      source_type_id: VarInt::read_buf(buffer)?.value(),
+      source_cause_id: VarInt::read_buf(buffer)?.value(),
+      source_direct_id: VarInt::read_buf(buffer)?.value(),
+      source_position: Position::read_buf(buffer)?,
+    })
+  }
+
+  pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
+    VarInt::new(self.entity_id).write_buf(buffer)?;
+    VarInt::new(self.source_type_id).write_buf(buffer)?;
+    VarInt::new(self.source_cause_id).write_buf(buffer)?;
+    VarInt::new(self.source_direct_id).write_buf(buffer)?;
+    self.source_position.write_buf(buffer)?;
+    Ok(())
+  }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClientsideUpdateEntityPos {
+  pub entity_id: i32,
+  pub delta_x: i16,
+  pub delta_y: i16,
+  pub delta_z: i16,
+  pub on_ground: bool,
+}
+
+impl ClientsideUpdateEntityPos {
+  pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+    Some(Self {
+      entity_id: VarInt::read_buf(buffer)?.value(),
+      delta_x: i16::read_buf(buffer)?,
+      delta_y: i16::read_buf(buffer)?,
+      delta_z: i16::read_buf(buffer)?,
+      on_ground: bool::read_buf(buffer)?,
+    })
+  }
+
+  pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
+    VarInt::new(self.entity_id).write_buf(buffer)?;
+    self.delta_x.write_buf(buffer)?;
+    self.delta_y.write_buf(buffer)?;
+    self.delta_z.write_buf(buffer)?;
+    self.on_ground.write_buf(buffer)?;
+    Ok(())
+  }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClientsidePlayerPosition {
+  pub teleport_id: i64,
+  pub position: Position,
+  pub velocity: Velocity,
+  pub rotation: Rotation,
+  pub teleport_flags: TeleportFlags,
+}
+
+impl ClientsidePlayerPosition {
+  pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+    Some(Self {
+      teleport_id: VarLong::read_buf(buffer)?.value(),
+      position: Position::read_buf(buffer)?,
+      velocity: Velocity::read_buf(buffer)?,
+      rotation: Rotation::read_buf(buffer)?,
+      teleport_flags: TeleportFlags::read_buf(buffer)?,
+    })
+  }
+
+  pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
+    VarLong::new(self.teleport_id).write_buf(buffer)?;
+    self.position.write_buf(buffer)?;
+    self.velocity.write_buf(buffer)?;
+    self.rotation.write_buf(buffer)?;
+    self.teleport_flags.write_buf(buffer)?;
+    Ok(())
+  }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClientsidePlayerRotation {
+  pub rotation: Rotation,
   pub relative_yaw: bool,
   pub relative_pitch: bool,
-  pub relative_velocity_x: bool,
-  pub relative_velocity_y: bool,
-  pub relative_velocity_z: bool,
-  pub rotate_velocity: bool,
 }
 
-impl TeleportFlags {
+impl ClientsidePlayerRotation {
   pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    let flags = i32::read_buf(buffer)?;
     Some(Self {
-      relative_x: (flags & 0x0001) != 0,
-      relative_y: (flags & 0x0002) != 0,
-      relative_z: (flags & 0x0004) != 0,
-      relative_yaw: (flags & 0x0008) != 0,
-      relative_pitch: (flags & 0x0010) != 0,
-      relative_velocity_x: (flags & 0x0020) != 0,
-      relative_velocity_y: (flags & 0x0040) != 0,
-      relative_velocity_z: (flags & 0x0080) != 0,
-      rotate_velocity: (flags & 0x0100) != 0,
+      rotation: Rotation::read_buf(buffer)?,
+      relative_yaw: bool::read_buf(buffer)?,
+      relative_pitch: bool::read_buf(buffer)?,
     })
   }
 
   pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
-    let mut flags = 0i32;
-    if self.relative_x {
-      flags |= 0x0001;
-    }
-    if self.relative_y {
-      flags |= 0x0002;
-    }
-    if self.relative_z {
-      flags |= 0x0004;
-    }
-    if self.relative_yaw {
-      flags |= 0x0008;
-    }
-    if self.relative_pitch {
-      flags |= 0x0010;
-    }
-    if self.relative_velocity_x {
-      flags |= 0x0020;
-    }
-    if self.relative_velocity_y {
-      flags |= 0x0040;
-    }
-    if self.relative_velocity_z {
-      flags |= 0x0080;
-    }
-    if self.rotate_velocity {
-      flags |= 0x0100;
-    }
-    flags.write_buf(buffer)
+    self.rotation.write_buf(buffer)?;
+    self.relative_yaw.write_buf(buffer)?;
+    self.relative_pitch.write_buf(buffer)?;
+    Ok(())
   }
 }
 
-impl ClientsideSyncPlayerPosition {
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClientsidePlayerCombatKill {
+  pub player_id: i32,
+}
+
+impl ClientsidePlayerCombatKill {
   pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
     Some(Self {
-      teleport_id: i64::read_varint(buffer)?,
-      position_x: f64::read_buf(buffer)?,
-      position_y: f64::read_buf(buffer)?,
-      position_z: f64::read_buf(buffer)?,
-      velocity_x: f64::read_buf(buffer)?,
-      velocity_y: f64::read_buf(buffer)?,
-      velocity_z: f64::read_buf(buffer)?,
-      yaw: f32::read_buf(buffer)?,
-      pitch: f32::read_buf(buffer)?,
-      teleport_flags: TeleportFlags::read(buffer)?,
+      player_id: VarInt::read_buf(buffer)?.value(),
     })
   }
 
   pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
-    self.teleport_id.write_varint(buffer)?;
-    self.position_x.write_buf(buffer)?;
-    self.position_y.write_buf(buffer)?;
-    self.position_z.write_buf(buffer)?;
-    self.velocity_x.write_buf(buffer)?;
-    self.velocity_y.write_buf(buffer)?;
-    self.velocity_z.write_buf(buffer)?;
-    self.yaw.write_buf(buffer)?;
-    self.pitch.write_buf(buffer)?;
-    self.teleport_flags.write(buffer)?;
+    VarInt::new(self.player_id).write_buf(buffer)?;
+    Ok(())
+  }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClientsideSetHealth {
+  pub health: f32,
+  pub food: i32,
+  pub food_saturation: f32,
+}
+
+impl ClientsideSetHealth {
+  pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+    Some(Self {
+      health: f32::read_buf(buffer)?,
+      food: VarInt::read_buf(buffer)?.value(),
+      food_saturation: f32::read_buf(buffer)?,
+    })
+  }
+
+  pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
+    self.health.write_buf(buffer)?;
+    VarInt::new(self.food).write_buf(buffer)?;
+    self.food_saturation.write_buf(buffer)?;
+    Ok(())
+  }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClientsideSetExperience {
+  pub experience_bar: f32,
+  pub level: i32,
+  pub total_experience: i32,
+}
+
+impl ClientsideSetExperience {
+  pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+    Some(Self {
+      experience_bar: f32::read_buf(buffer)?,
+      level: VarInt::read_buf(buffer)?.value(),
+      total_experience: VarInt::read_buf(buffer)?.value(),
+    })
+  }
+
+  pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
+    self.experience_bar.write_buf(buffer)?;
+    VarInt::new(self.level).write_buf(buffer)?;
+    VarInt::new(self.total_experience).write_buf(buffer)?;
     Ok(())
   }
 }
@@ -205,12 +400,75 @@ pub struct ServersideAcceptTeleportation {
 impl ServersideAcceptTeleportation {
   pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
     Some(Self {
-      teleport_id: i64::read_varint(buffer)?,
+      teleport_id: VarLong::read_buf(buffer)?.value(),
     })
   }
 
   pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
-    self.teleport_id.write_varint(buffer)?;
+    VarLong::new(self.teleport_id).write_buf(buffer)?;
+    Ok(())
+  }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ServersideSwingArm {
+  pub hand: RelativeHand,
+}
+
+impl ServersideSwingArm {
+  pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+    Some(Self {
+      hand: RelativeHand::read_buf(buffer)?,
+    })
+  }
+
+  pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
+    self.hand.write_buf(buffer)?;
+    Ok(())
+  }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ServersideUseItem {
+  pub hand: RelativeHand,
+  pub sequence: i32,
+  pub rotation: Rotation,
+}
+
+impl ServersideUseItem {
+  pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+    Some(Self {
+      hand: RelativeHand::read_buf(buffer)?,
+      sequence: VarInt::read_buf(buffer)?.value(),
+      rotation: Rotation::read_buf(buffer)?,
+    })
+  }
+
+  pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
+    self.hand.write_buf(buffer)?;
+    VarInt::new(self.sequence).write_buf(buffer)?;
+    self.hand.write_buf(buffer)?;
+    Ok(())
+  }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ServersideMovePlayerPos {
+  pub position: Position,
+  pub flags: PhysicsFlags,
+}
+
+impl ServersideMovePlayerPos {
+  pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+    Some(Self {
+      position: Position::read_buf(buffer)?,
+      flags: PhysicsFlags::read_buf(buffer)?,
+    })
+  }
+
+  pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
+    self.position.write_buf(buffer)?;
+    self.flags.write_buf(buffer)?;
     Ok(())
   }
 }

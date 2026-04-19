@@ -12,6 +12,7 @@ mod tests {
   use nurtex_protocol::packets::handshake::{ClientIntention, ServersideGreet, ServersideHandshakePacket};
   use nurtex_protocol::packets::login::{ClientsideLoginPacket, ServersideLoginAcknowledged, ServersideLoginPacket, ServersideLoginStart};
   use nurtex_protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket};
+  use nurtex_protocol::types::{AccurateHand, DisplayedSkinParts};
 
   #[tokio::test]
   async fn create_client() -> io::Result<()> {
@@ -35,7 +36,7 @@ mod tests {
 
     conn
       .write_login_packet(ServersideLoginPacket::LoginStart(ServersideLoginStart {
-        username: "NurtexBot1".to_string(),
+        username: "NurtexBot_0".to_string(),
         uuid: uuid::Uuid::nil(),
       }))
       .await?;
@@ -71,8 +72,8 @@ mod tests {
         view_distance: 10,
         chat_mode: 0,
         chat_colors: true,
-        displayed_skin_parts: 0x7F,
-        main_hand: 1,
+        displayed_skin_parts: DisplayedSkinParts::default(),
+        main_hand: AccurateHand::Right,
         enable_text_filtering: false,
         allow_server_listings: true,
         particle_status: 0,
@@ -124,11 +125,17 @@ mod tests {
 
     loop {
       if let Some(p) = conn.read_play_packet().await {
+        println!("Получен пакет: {:?}", p);
+
         match p {
           ClientsidePlayPacket::KeepAlive(p) => {
             conn
               .write_play_packet(ServersidePlayPacket::KeepAlive(nurtex_protocol::packets::play::MultisideKeepAlive { id: p.id }))
               .await?;
+
+            // conn
+            //  .write_play_packet(ServersidePlayPacket::SwingArm(ServersideSwingArm { hand: RelativeHand::MainHand }))
+            //  .await?;
           }
           ClientsidePlayPacket::Ping(p) => {
             conn
