@@ -10,10 +10,11 @@ async fn main() -> io::Result<()> {
   let mut client = Client::create("NurtexBot", "1.21.11");
 
   // Подключаем клиента к серверу
-  client.connect_to("localhost", 25565).await?;
+  client.connect_to("localhost", 25565);
 
   // Подписываемся на отправку пакетов
-  let mut packet_rx = client.get_reader();
+  let reader = client.get_reader();
+  let mut packet_rx = reader.subscribe();
 
   // Запускаем цикл обработки пакетов
   loop {
