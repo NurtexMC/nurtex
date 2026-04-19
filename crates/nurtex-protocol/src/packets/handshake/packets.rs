@@ -1,4 +1,4 @@
-use nurtex_codec::{Buffer, BufferVar};
+use nurtex_codec::{Buffer, VarInt};
 use std::io::{self, Cursor, Write};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -19,7 +19,7 @@ impl From<i32> for ClientIntention {
 
 impl Buffer for ClientIntention {
   fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
-    let id = i32::read_varint(buffer)?;
+    let id = VarInt::read_buf(buffer)?.value();
     Some(id.into())
   }
 
@@ -29,7 +29,7 @@ impl Buffer for ClientIntention {
       ClientIntention::Login => 2,
     };
 
-    id.write_varint(buffer)
+    VarInt::new(id).write_buf(buffer)
   }
 }
 
@@ -44,7 +44,7 @@ pub struct ServersideGreet {
 impl ServersideGreet {
   pub fn read(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
     Some(Self {
-      protocol_version: i32::read_varint(buffer)?,
+      protocol_version: VarInt::read_buf(buffer)?.value(),
       server_host: String::read_buf(buffer)?,
       server_port: u16::read_buf(buffer)?,
       intention: ClientIntention::read_buf(buffer)?,
@@ -52,11 +52,10 @@ impl ServersideGreet {
   }
 
   pub fn write(&self, buffer: &mut impl Write) -> io::Result<()> {
-    self.protocol_version.write_varint(buffer)?;
+    VarInt::new(self.protocol_version).write_buf(buffer)?;
     self.server_host.write_buf(buffer)?;
     self.server_port.write_buf(buffer)?;
     self.intention.write_buf(buffer)?;
-
     Ok(())
   }
 }

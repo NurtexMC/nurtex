@@ -26,6 +26,12 @@ impl Packet for ServersideHandshakePacket {
   }
 }
 
+impl IntoPacket<ServersideHandshakePacket> for ServersideHandshakePacket {
+  fn sample(self) -> ServersideHandshakePacket {
+    self
+  }
+}
+
 impl IntoPacket<ServersideHandshakePacket> for ServersideGreet {
   fn sample(self) -> ServersideHandshakePacket {
     ServersideHandshakePacket::Intention(self)
@@ -46,5 +52,11 @@ impl Packet for ClientsideHandshakePacket {
 
   fn write(&self, _buf: &mut impl Write) -> io::Result<()> {
     Ok(())
+  }
+}
+
+impl IntoPacket<ClientsideHandshakePacket> for ClientsideHandshakePacket {
+  fn sample(self) -> ClientsideHandshakePacket {
+    self
   }
 }

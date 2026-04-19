@@ -1,5 +1,8 @@
 use std::io::{self, Cursor, Error, ErrorKind, Read, Write};
 
+pub const SEGMENT_BITS: u8 = 0x7F;
+pub const CONTINUE_BIT: u8 = 0x80;
+
 /// Трейт буффера
 pub trait Buffer
 where
@@ -7,15 +10,6 @@ where
 {
   fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self>;
   fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()>;
-}
-
-/// Трейт var буффера
-pub trait BufferVar
-where
-  Self: Sized,
-{
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<Self>;
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()>;
 }
 
 /// Вспомогательная функция для чтения одного байта из буффера
@@ -40,7 +34,9 @@ pub fn read_bytes<'a>(buffer: &'a mut Cursor<&[u8]>, length: usize) -> Option<&'
 
 /// Вспомогательная функция чтения строки из буффера
 pub fn read_str<'a>(buffer: &'a mut Cursor<&[u8]>) -> Option<&'a str> {
-  let length = u32::read_varint(buffer)?;
+  use crate::VarInt;
+
+  let length = VarInt::read_buf(buffer)?.value() as u32;
 
   if length > 32767 * 4 {
     return None;
@@ -58,13 +54,16 @@ pub fn read_str<'a>(buffer: &'a mut Cursor<&[u8]>) -> Option<&'a str> {
 
 /// Вспомогательная функция записи строки в буффер
 pub fn write_str(buffer: &mut impl Write, string: &str) -> io::Result<()> {
+  use crate::VarInt;
+
   let str_len = string.len();
 
   if str_len > 32767 {
     return Err(Error::new(ErrorKind::InvalidData, ""));
   }
 
-  string.as_bytes().to_vec().write_buf(buffer)?;
+  VarInt::new(str_len as i32).write_buf(buffer)?;
+  buffer.write_all(string.as_bytes())?;
 
   Ok(())
 }

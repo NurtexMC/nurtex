@@ -98,6 +98,12 @@ impl Packet for ClientsideConfigurationPacket {
   }
 }
 
+impl IntoPacket<ClientsideConfigurationPacket> for ClientsideConfigurationPacket {
+  fn sample(self) -> ClientsideConfigurationPacket {
+    self
+  }
+}
+
 impl IntoPacket<ClientsideConfigurationPacket> for ClientsideCookieRequest {
   fn sample(self) -> ClientsideConfigurationPacket {
     ClientsideConfigurationPacket::CookieRequest(self)
@@ -254,6 +260,12 @@ impl Packet for ServersideConfigurationPacket {
   }
 }
 
+impl IntoPacket<ServersideConfigurationPacket> for ServersideConfigurationPacket {
+  fn sample(self) -> ServersideConfigurationPacket {
+    self
+  }
+}
+
 impl IntoPacket<ServersideConfigurationPacket> for ServersideClientInformation {
   fn sample(self) -> ServersideConfigurationPacket {
     ServersideConfigurationPacket::ClientInformation(self)
@@ -299,16 +311,5 @@ impl IntoPacket<ServersideConfigurationPacket> for ServersideResourcePackRespons
 impl IntoPacket<ServersideConfigurationPacket> for ServersideKnownPacks {
   fn sample(self) -> ServersideConfigurationPacket {
     ServersideConfigurationPacket::KnownPacks(self)
-  }
-}
-impl IntoPacket<ClientsideConfigurationPacket> for ClientsideConfigurationPacket {
-  fn sample(self) -> ClientsideConfigurationPacket {
-    self
-  }
-}
-
-impl IntoPacket<ServersideConfigurationPacket> for ServersideConfigurationPacket {
-  fn sample(self) -> ServersideConfigurationPacket {
-    self
   }
 }

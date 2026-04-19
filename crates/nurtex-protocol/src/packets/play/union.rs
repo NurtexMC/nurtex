@@ -1,7 +1,9 @@
 use std::io::{self, Cursor, Write};
 
 use crate::packets::play::{
-  ClientsidePing, ClientsidePingResponse, ClientsideSyncPlayerPosition, MultisideKeepAlive, ServersideAcceptTeleportation, ServersidePingRequest, ServersidePong,
+  ClientsideDamageEvent, ClientsideLogin, ClientsidePing, ClientsidePingResponse, ClientsidePlayerCombatKill, ClientsidePlayerPosition, ClientsidePlayerRotation,
+  ClientsideSetExperience, ClientsideSetHealth, ClientsideUpdateEntityPos, MultisideKeepAlive, ServersideAcceptTeleportation, ServersideMovePlayerPos, ServersidePingRequest,
+  ServersidePong, ServersideSwingArm, ServersideUseItem,
 };
 use crate::{IntoPacket, Packet};
 
@@ -10,7 +12,14 @@ pub enum ClientsidePlayPacket {
   KeepAlive(MultisideKeepAlive),
   Ping(ClientsidePing),
   PingResponse(ClientsidePingResponse),
-  SyncPlayerPosition(ClientsideSyncPlayerPosition),
+  DamageEvent(ClientsideDamageEvent),
+  UpdateEntityPos(ClientsideUpdateEntityPos),
+  Login(ClientsideLogin),
+  PlayerPosition(ClientsidePlayerPosition),
+  PlayerRotation(ClientsidePlayerRotation),
+  PlayerCombatKill(ClientsidePlayerCombatKill),
+  SetHealth(ClientsideSetHealth),
+  SetExperience(ClientsideSetExperience),
 }
 
 impl Packet for ClientsidePlayPacket {
@@ -19,7 +28,14 @@ impl Packet for ClientsidePlayPacket {
       Self::KeepAlive(_) => 0x2B,
       Self::Ping(_) => 0x3B,
       Self::PingResponse(_) => 0x3C,
-      Self::SyncPlayerPosition(_) => 0x46,
+      Self::DamageEvent(_) => 0x19,
+      Self::UpdateEntityPos(_) => 0x33,
+      Self::Login(_) => 0x30,
+      Self::PlayerPosition(_) => 0x46,
+      Self::PlayerRotation(_) => 0x47,
+      Self::PlayerCombatKill(_) => 0x42,
+      Self::SetHealth(_) => 0x66,
+      Self::SetExperience(_) => 0x65,
     }
   }
 
@@ -28,7 +44,14 @@ impl Packet for ClientsidePlayPacket {
       0x2B => Some(Self::KeepAlive(MultisideKeepAlive::read(buf)?)),
       0x3B => Some(Self::Ping(ClientsidePing::read(buf)?)),
       0x3C => Some(Self::PingResponse(ClientsidePingResponse::read(buf)?)),
-      0x46 => Some(Self::SyncPlayerPosition(ClientsideSyncPlayerPosition::read(buf)?)),
+      0x19 => Some(Self::DamageEvent(ClientsideDamageEvent::read(buf)?)),
+      0x33 => Some(Self::UpdateEntityPos(ClientsideUpdateEntityPos::read(buf)?)),
+      0x30 => Some(Self::Login(ClientsideLogin::read(buf)?)),
+      0x46 => Some(Self::PlayerPosition(ClientsidePlayerPosition::read(buf)?)),
+      0x47 => Some(Self::PlayerRotation(ClientsidePlayerRotation::read(buf)?)),
+      0x42 => Some(Self::PlayerCombatKill(ClientsidePlayerCombatKill::read(buf)?)),
+      0x66 => Some(Self::SetHealth(ClientsideSetHealth::read(buf)?)),
+      0x65 => Some(Self::SetExperience(ClientsideSetExperience::read(buf)?)),
       _ => None,
     }
   }
@@ -38,8 +61,21 @@ impl Packet for ClientsidePlayPacket {
       Self::KeepAlive(p) => p.write(buf),
       Self::Ping(p) => p.write(buf),
       Self::PingResponse(p) => p.write(buf),
-      Self::SyncPlayerPosition(p) => p.write(buf),
+      Self::DamageEvent(p) => p.write(buf),
+      Self::UpdateEntityPos(p) => p.write(buf),
+      Self::Login(p) => p.write(buf),
+      Self::PlayerPosition(p) => p.write(buf),
+      Self::PlayerRotation(p) => p.write(buf),
+      Self::PlayerCombatKill(p) => p.write(buf),
+      Self::SetHealth(p) => p.write(buf),
+      Self::SetExperience(p) => p.write(buf),
     }
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsidePlayPacket {
+  fn sample(self) -> ClientsidePlayPacket {
+    self
   }
 }
 
@@ -61,9 +97,51 @@ impl IntoPacket<ClientsidePlayPacket> for ClientsidePingResponse {
   }
 }
 
-impl IntoPacket<ClientsidePlayPacket> for ClientsideSyncPlayerPosition {
+impl IntoPacket<ClientsidePlayPacket> for ClientsidePlayerPosition {
   fn sample(self) -> ClientsidePlayPacket {
-    ClientsidePlayPacket::SyncPlayerPosition(self)
+    ClientsidePlayPacket::PlayerPosition(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsideDamageEvent {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::DamageEvent(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsideUpdateEntityPos {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::UpdateEntityPos(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsideLogin {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::Login(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsidePlayerRotation {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::PlayerRotation(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsidePlayerCombatKill {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::PlayerCombatKill(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsideSetHealth {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::SetHealth(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsideSetExperience {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::SetExperience(self)
   }
 }
 
@@ -73,6 +151,9 @@ pub enum ServersidePlayPacket {
   Pong(ServersidePong),
   PingRequest(ServersidePingRequest),
   AcceptTeleportation(ServersideAcceptTeleportation),
+  SwingArm(ServersideSwingArm),
+  UseItem(ServersideUseItem),
+  MovePlayerPos(ServersideMovePlayerPos),
 }
 
 impl Packet for ServersidePlayPacket {
@@ -82,6 +163,9 @@ impl Packet for ServersidePlayPacket {
       Self::Pong(_) => 0x2C,
       Self::PingRequest(_) => 0x25,
       Self::AcceptTeleportation(_) => 0x00,
+      Self::SwingArm(_) => 0x3C,
+      Self::UseItem(_) => 0x40,
+      Self::MovePlayerPos(_) => 0x1D,
     }
   }
 
@@ -91,6 +175,9 @@ impl Packet for ServersidePlayPacket {
       0x2C => Some(Self::Pong(ServersidePong::read(buf)?)),
       0x25 => Some(Self::PingRequest(ServersidePingRequest::read(buf)?)),
       0x00 => Some(Self::AcceptTeleportation(ServersideAcceptTeleportation::read(buf)?)),
+      0x3C => Some(Self::SwingArm(ServersideSwingArm::read(buf)?)),
+      0x40 => Some(Self::UseItem(ServersideUseItem::read(buf)?)),
+      0x1D => Some(Self::MovePlayerPos(ServersideMovePlayerPos::read(buf)?)),
       _ => None,
     }
   }
@@ -101,7 +188,16 @@ impl Packet for ServersidePlayPacket {
       Self::Pong(p) => p.write(buf),
       Self::PingRequest(p) => p.write(buf),
       Self::AcceptTeleportation(p) => p.write(buf),
+      Self::SwingArm(p) => p.write(buf),
+      Self::UseItem(p) => p.write(buf),
+      Self::MovePlayerPos(p) => p.write(buf),
     }
+  }
+}
+
+impl IntoPacket<ServersidePlayPacket> for ServersidePlayPacket {
+  fn sample(self) -> ServersidePlayPacket {
+    self
   }
 }
 
@@ -128,14 +224,21 @@ impl IntoPacket<ServersidePlayPacket> for ServersideAcceptTeleportation {
     ServersidePlayPacket::AcceptTeleportation(self)
   }
 }
-impl IntoPacket<ClientsidePlayPacket> for ClientsidePlayPacket {
-  fn sample(self) -> ClientsidePlayPacket {
-    self
+
+impl IntoPacket<ServersidePlayPacket> for ServersideSwingArm {
+  fn sample(self) -> ServersidePlayPacket {
+    ServersidePlayPacket::SwingArm(self)
   }
 }
 
-impl IntoPacket<ServersidePlayPacket> for ServersidePlayPacket {
+impl IntoPacket<ServersidePlayPacket> for ServersideUseItem {
   fn sample(self) -> ServersidePlayPacket {
-    self
+    ServersidePlayPacket::UseItem(self)
+  }
+}
+
+impl IntoPacket<ServersidePlayPacket> for ServersideMovePlayerPos {
+  fn sample(self) -> ServersidePlayPacket {
+    ServersidePlayPacket::MovePlayerPos(self)
   }
 }

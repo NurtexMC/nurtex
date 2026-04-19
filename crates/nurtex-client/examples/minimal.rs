@@ -13,7 +13,7 @@ async fn main() -> io::Result<()> {
   client.connect_to("localhost", 25565).await?;
 
   // Подписываемся на отправку пакетов
-  let mut packet_rx = client.subscribe_to_reader();
+  let mut packet_rx = client.get_reader();
 
   // Запускаем цикл обработки пакетов
   loop {
