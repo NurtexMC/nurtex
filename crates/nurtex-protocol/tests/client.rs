@@ -36,7 +36,7 @@ mod tests {
 
     conn
       .write_login_packet(ServersideLoginPacket::LoginStart(ServersideLoginStart {
-        username: "NurtexBot_0".to_string(),
+        username: "TestBot".to_string(),
         uuid: uuid::Uuid::nil(),
       }))
       .await?;

@@ -1,9 +1,10 @@
 use std::io::{self, Cursor, Write};
 
 use crate::packets::play::{
-  ClientsideDamageEvent, ClientsideLogin, ClientsidePing, ClientsidePingResponse, ClientsidePlayerCombatKill, ClientsidePlayerPosition, ClientsidePlayerRotation,
-  ClientsideSetExperience, ClientsideSetHealth, ClientsideUpdateEntityPos, MultisideKeepAlive, ServersideAcceptTeleportation, ServersideMovePlayerPos, ServersidePingRequest,
-  ServersidePong, ServersideSwingArm, ServersideUseItem,
+  ClientsideDamageEvent, ClientsideLogin, ClientsidePing, ClientsidePingResponse, ClientsidePlayerCombatKill, ClientsidePlayerLookAt, ClientsidePlayerPosition,
+  ClientsidePlayerRotation, ClientsideRemoveEntities, ClientsideSetEntityVelocity, ClientsideSetExperience, ClientsideSetHealth, ClientsideSetPassengers, ClientsideSpawnEntity,
+  ClientsideUpdateEntityPos, ClientsideUpdateEntityPosRot, ClientsideUpdateEntityRot, MultisideKeepAlive, ServersideAcceptTeleportation, ServersideMovePlayerPos,
+  ServersideMovePlayerPosRot, ServersideMovePlayerRot, ServersideMovePlayerStatusOnly, ServersidePingRequest, ServersidePong, ServersideSwingArm, ServersideUseItem,
 };
 use crate::{IntoPacket, Packet};
 
@@ -14,12 +15,19 @@ pub enum ClientsidePlayPacket {
   PingResponse(ClientsidePingResponse),
   DamageEvent(ClientsideDamageEvent),
   UpdateEntityPos(ClientsideUpdateEntityPos),
+  UpdateEntityRot(ClientsideUpdateEntityRot),
+  UpdateEntityPosRot(ClientsideUpdateEntityPosRot),
   Login(ClientsideLogin),
   PlayerPosition(ClientsidePlayerPosition),
   PlayerRotation(ClientsidePlayerRotation),
+  PlayerLookAt(ClientsidePlayerLookAt),
   PlayerCombatKill(ClientsidePlayerCombatKill),
   SetHealth(ClientsideSetHealth),
   SetExperience(ClientsideSetExperience),
+  SetPassengers(ClientsideSetPassengers),
+  SetEntityVelocity(ClientsideSetEntityVelocity),
+  SpawnEntity(ClientsideSpawnEntity),
+  RemoveEntities(ClientsideRemoveEntities),
 }
 
 impl Packet for ClientsidePlayPacket {
@@ -30,12 +38,19 @@ impl Packet for ClientsidePlayPacket {
       Self::PingResponse(_) => 0x3C,
       Self::DamageEvent(_) => 0x19,
       Self::UpdateEntityPos(_) => 0x33,
+      Self::UpdateEntityRot(_) => 0x36,
+      Self::UpdateEntityPosRot(_) => 0x34,
       Self::Login(_) => 0x30,
       Self::PlayerPosition(_) => 0x46,
       Self::PlayerRotation(_) => 0x47,
+      Self::PlayerLookAt(_) => 0x45,
       Self::PlayerCombatKill(_) => 0x42,
       Self::SetHealth(_) => 0x66,
       Self::SetExperience(_) => 0x65,
+      Self::SetPassengers(_) => 0x69,
+      Self::SetEntityVelocity(_) => 0x63,
+      Self::SpawnEntity(_) => 0x01,
+      Self::RemoveEntities(_) => 0x4B,
     }
   }
 
@@ -46,12 +61,19 @@ impl Packet for ClientsidePlayPacket {
       0x3C => Some(Self::PingResponse(ClientsidePingResponse::read(buf)?)),
       0x19 => Some(Self::DamageEvent(ClientsideDamageEvent::read(buf)?)),
       0x33 => Some(Self::UpdateEntityPos(ClientsideUpdateEntityPos::read(buf)?)),
+      0x36 => Some(Self::UpdateEntityRot(ClientsideUpdateEntityRot::read(buf)?)),
+      0x34 => Some(Self::UpdateEntityPosRot(ClientsideUpdateEntityPosRot::read(buf)?)),
       0x30 => Some(Self::Login(ClientsideLogin::read(buf)?)),
       0x46 => Some(Self::PlayerPosition(ClientsidePlayerPosition::read(buf)?)),
       0x47 => Some(Self::PlayerRotation(ClientsidePlayerRotation::read(buf)?)),
+      0x45 => Some(Self::PlayerLookAt(ClientsidePlayerLookAt::read(buf)?)),
       0x42 => Some(Self::PlayerCombatKill(ClientsidePlayerCombatKill::read(buf)?)),
       0x66 => Some(Self::SetHealth(ClientsideSetHealth::read(buf)?)),
       0x65 => Some(Self::SetExperience(ClientsideSetExperience::read(buf)?)),
+      0x69 => Some(Self::SetPassengers(ClientsideSetPassengers::read(buf)?)),
+      0x63 => Some(Self::SetEntityVelocity(ClientsideSetEntityVelocity::read(buf)?)),
+      0x01 => Some(Self::SpawnEntity(ClientsideSpawnEntity::read(buf)?)),
+      0x4B => Some(Self::RemoveEntities(ClientsideRemoveEntities::read(buf)?)),
       _ => None,
     }
   }
@@ -63,12 +85,19 @@ impl Packet for ClientsidePlayPacket {
       Self::PingResponse(p) => p.write(buf),
       Self::DamageEvent(p) => p.write(buf),
       Self::UpdateEntityPos(p) => p.write(buf),
+      Self::UpdateEntityRot(p) => p.write(buf),
+      Self::UpdateEntityPosRot(p) => p.write(buf),
       Self::Login(p) => p.write(buf),
       Self::PlayerPosition(p) => p.write(buf),
       Self::PlayerRotation(p) => p.write(buf),
+      Self::PlayerLookAt(p) => p.write(buf),
       Self::PlayerCombatKill(p) => p.write(buf),
       Self::SetHealth(p) => p.write(buf),
       Self::SetExperience(p) => p.write(buf),
+      Self::SetPassengers(p) => p.write(buf),
+      Self::SetEntityVelocity(p) => p.write(buf),
+      Self::SpawnEntity(p) => p.write(buf),
+      Self::RemoveEntities(p) => p.write(buf),
     }
   }
 }
@@ -97,12 +126,6 @@ impl IntoPacket<ClientsidePlayPacket> for ClientsidePingResponse {
   }
 }
 
-impl IntoPacket<ClientsidePlayPacket> for ClientsidePlayerPosition {
-  fn sample(self) -> ClientsidePlayPacket {
-    ClientsidePlayPacket::PlayerPosition(self)
-  }
-}
-
 impl IntoPacket<ClientsidePlayPacket> for ClientsideDamageEvent {
   fn sample(self) -> ClientsidePlayPacket {
     ClientsidePlayPacket::DamageEvent(self)
@@ -115,15 +138,39 @@ impl IntoPacket<ClientsidePlayPacket> for ClientsideUpdateEntityPos {
   }
 }
 
+impl IntoPacket<ClientsidePlayPacket> for ClientsideUpdateEntityRot {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::UpdateEntityRot(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsideUpdateEntityPosRot {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::UpdateEntityPosRot(self)
+  }
+}
+
 impl IntoPacket<ClientsidePlayPacket> for ClientsideLogin {
   fn sample(self) -> ClientsidePlayPacket {
     ClientsidePlayPacket::Login(self)
   }
 }
 
+impl IntoPacket<ClientsidePlayPacket> for ClientsidePlayerPosition {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::PlayerPosition(self)
+  }
+}
+
 impl IntoPacket<ClientsidePlayPacket> for ClientsidePlayerRotation {
   fn sample(self) -> ClientsidePlayPacket {
     ClientsidePlayPacket::PlayerRotation(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsidePlayerLookAt {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::PlayerLookAt(self)
   }
 }
 
@@ -139,9 +186,27 @@ impl IntoPacket<ClientsidePlayPacket> for ClientsideSetHealth {
   }
 }
 
-impl IntoPacket<ClientsidePlayPacket> for ClientsideSetExperience {
+impl IntoPacket<ClientsidePlayPacket> for ClientsideSetPassengers {
   fn sample(self) -> ClientsidePlayPacket {
-    ClientsidePlayPacket::SetExperience(self)
+    ClientsidePlayPacket::SetPassengers(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsideSetEntityVelocity {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::SetEntityVelocity(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsideSpawnEntity {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::SpawnEntity(self)
+  }
+}
+
+impl IntoPacket<ClientsidePlayPacket> for ClientsideRemoveEntities {
+  fn sample(self) -> ClientsidePlayPacket {
+    ClientsidePlayPacket::RemoveEntities(self)
   }
 }
 
@@ -154,6 +219,9 @@ pub enum ServersidePlayPacket {
   SwingArm(ServersideSwingArm),
   UseItem(ServersideUseItem),
   MovePlayerPos(ServersideMovePlayerPos),
+  MovePlayerRot(ServersideMovePlayerRot),
+  MovePlayerPosRot(ServersideMovePlayerPosRot),
+  MovePlayerStatusOnly(ServersideMovePlayerStatusOnly),
 }
 
 impl Packet for ServersidePlayPacket {
@@ -166,6 +234,9 @@ impl Packet for ServersidePlayPacket {
       Self::SwingArm(_) => 0x3C,
       Self::UseItem(_) => 0x40,
       Self::MovePlayerPos(_) => 0x1D,
+      Self::MovePlayerRot(_) => 0x1F,
+      Self::MovePlayerPosRot(_) => 0x1E,
+      Self::MovePlayerStatusOnly(_) => 0x20,
     }
   }
 
@@ -178,6 +249,9 @@ impl Packet for ServersidePlayPacket {
       0x3C => Some(Self::SwingArm(ServersideSwingArm::read(buf)?)),
       0x40 => Some(Self::UseItem(ServersideUseItem::read(buf)?)),
       0x1D => Some(Self::MovePlayerPos(ServersideMovePlayerPos::read(buf)?)),
+      0x1F => Some(Self::MovePlayerRot(ServersideMovePlayerRot::read(buf)?)),
+      0x1E => Some(Self::MovePlayerPosRot(ServersideMovePlayerPosRot::read(buf)?)),
+      0x20 => Some(Self::MovePlayerStatusOnly(ServersideMovePlayerStatusOnly::read(buf)?)),
       _ => None,
     }
   }
@@ -191,6 +265,9 @@ impl Packet for ServersidePlayPacket {
       Self::SwingArm(p) => p.write(buf),
       Self::UseItem(p) => p.write(buf),
       Self::MovePlayerPos(p) => p.write(buf),
+      Self::MovePlayerRot(p) => p.write(buf),
+      Self::MovePlayerPosRot(p) => p.write(buf),
+      Self::MovePlayerStatusOnly(p) => p.write(buf),
     }
   }
 }
@@ -240,5 +317,23 @@ impl IntoPacket<ServersidePlayPacket> for ServersideUseItem {
 impl IntoPacket<ServersidePlayPacket> for ServersideMovePlayerPos {
   fn sample(self) -> ServersidePlayPacket {
     ServersidePlayPacket::MovePlayerPos(self)
+  }
+}
+
+impl IntoPacket<ServersidePlayPacket> for ServersideMovePlayerRot {
+  fn sample(self) -> ServersidePlayPacket {
+    ServersidePlayPacket::MovePlayerRot(self)
+  }
+}
+
+impl IntoPacket<ServersidePlayPacket> for ServersideMovePlayerPosRot {
+  fn sample(self) -> ServersidePlayPacket {
+    ServersidePlayPacket::MovePlayerPosRot(self)
+  }
+}
+
+impl IntoPacket<ServersidePlayPacket> for ServersideMovePlayerStatusOnly {
+  fn sample(self) -> ServersidePlayPacket {
+    ServersidePlayPacket::MovePlayerStatusOnly(self)
   }
 }
