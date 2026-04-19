@@ -5,7 +5,7 @@ use std::io::{self, Cursor, Write};
 pub trait VarLong {
   /// Метод чтения `VarLong` из буффера
   fn read_varlong(buffer: &mut Cursor<&[u8]>) -> Option<i64>;
-  
+
   /// Метод записи `VarLong` в буффер
   fn write_varlong(&self, buffer: &mut impl Write) -> io::Result<()>;
 }

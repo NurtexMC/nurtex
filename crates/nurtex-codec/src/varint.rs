@@ -5,7 +5,7 @@ use std::io::{self, Cursor, Write};
 pub trait VarInt {
   /// Метод чтения `VarInt` из буффера
   fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<i32>;
-  
+
   /// Метод записи `VarInt` в буффер
   fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()>;
 }
