@@ -16,6 +16,6 @@ name = "nurtex_client"
 path = "src/lib.rs"
 
 [dependencies]
-tokio = { workspace = true }
-uuid = { workspace = true }
-nurtex-protocol = { workspace = true }
+tokio.workspace = true
+uuid.workspace = true
+nurtex-protocol.workspace = true

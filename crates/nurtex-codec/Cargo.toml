@@ -16,5 +16,5 @@ name = "nurtex_codec"
 path = "src/lib.rs"
 
 [dependencies]
-uuid = { workspace = true }
-byteorder = { workspace = true }
+uuid.workspace = true
+byteorder.workspace = true
