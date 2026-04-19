@@ -16,9 +16,9 @@ name = "nurtex_encrypt"
 path = "src/lib.rs"
 
 [dependencies]
-aes = { workspace = true }
-cfb8 = { workspace = true }
-cipher = { workspace = true }
-rand = { workspace = true }
-sha1 = { workspace = true }
-rsa_public_encrypt_pkcs1 = { workspace = true }
+aes.workspace = true
+cfb8.workspace = true
+cipher.workspace = true
+rand.workspace = true
+sha1.workspace = true
+rsa_public_encrypt_pkcs1.workspace = true

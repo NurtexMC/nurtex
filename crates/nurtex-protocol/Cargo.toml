@@ -16,12 +16,12 @@ name = "nurtex_protocol"
 path = "src/lib.rs"
 
 [dependencies]
-flate2 = { workspace = true }
-futures = { workspace = true }
-tokio = { workspace = true }
-tokio-util = { workspace = true }
-uuid = { workspace = true }
-hashbrown = { workspace = true }
-once_cell = { workspace = true }
-nurtex-codec = { workspace = true }
-nurtex-encrypt = { workspace = true }
+flate2.workspace = true
+futures.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+uuid.workspace = true
+hashbrown.workspace = true
+once_cell.workspace = true
+nurtex-codec.workspace = true
+nurtex-encrypt.workspace = true
