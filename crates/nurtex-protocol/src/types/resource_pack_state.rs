@@ -25,7 +25,7 @@ impl Buffer for ResourcePackState {
       5 => Self::InvalidUrl,
       6 => Self::FailedToReload,
       7 => Self::Discarded,
-      _ => return None
+      _ => return None,
     })
   }
 

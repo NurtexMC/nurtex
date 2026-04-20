@@ -15,16 +15,16 @@ impl Buffer for ClientIntention {
     let id = i32::read_varint(buffer)?;
 
     Some(match id {
-      1 => ClientIntention::Status,
-      2 => ClientIntention::Login,
-      _ => return None
+      1 => Self::Status,
+      2 => Self::Login,
+      _ => return None,
     })
   }
 
   fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
     let id = match self {
-      ClientIntention::Status => 1,
-      ClientIntention::Login => 2,
+      Self::Status => 1,
+      Self::Login => 2,
     };
 
     id.write_varint(buffer)

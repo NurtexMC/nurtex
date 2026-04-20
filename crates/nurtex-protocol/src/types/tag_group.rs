@@ -56,7 +56,7 @@ impl Buffer for Tag {
         }
 
         entries
-      }
+      },
     })
   }
 

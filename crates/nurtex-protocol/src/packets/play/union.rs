@@ -1,11 +1,15 @@
 use nurtex_derive::PacketUnion;
 
 use crate::packets::play::{
-  ClientsideDamageEvent, ClientsideDisconnect, ClientsidePing, ClientsidePingResponse, ClientsidePlayerChat, ClientsidePlayerCombatKill, ClientsidePlayerLookAt,
-  ClientsidePlayerPosition, ClientsidePlayerRotation, ClientsideRemoveEntities, ClientsideSetEntityVelocity, ClientsideSetExperience, ClientsideSetHealth, ClientsideSetPassengers,
-  ClientsideSpawnEntity, ClientsideUpdateEntityPos, ClientsideUpdateEntityPosRot, ClientsideUpdateEntityRot, MultisideKeepAlive, ServersideAcceptTeleportation,
-  ServersideClientCommand, ServersideMovePlayerPos, ServersideMovePlayerPosRot, ServersideMovePlayerRot, ServersideMovePlayerStatusOnly, ServersidePingRequest, ServersidePong,
-  ServersideSwingArm, ServersideUseItem,
+  ClientsideChunkCacheCenter, ClientsideChunkCacheRadius, ClientsideDamageEvent, ClientsideDisconnect, 
+  ClientsideLogin, ClientsideMoveVehicle, ClientsideOpenContainer, ClientsidePing, ClientsidePingResponse, 
+  ClientsidePlayerChat, ClientsidePlayerCombatKill, ClientsidePlayerLookAt, ClientsidePlayerPosition, ClientsidePlayerRotation, 
+  ClientsideRemoveEntities, ClientsideRemoveEntityEffect, ClientsideRotateHead, ClientsideSectionBlocksUpdate, 
+  ClientsideSetCamera, ClientsideAddResourcePack, ClientsideRemoveResourcePack, ClientsideSetEntityLink, ClientsideSetEntityVelocity, 
+  ClientsideSetExperience, ClientsideSetHealth, ClientsideSetPassengers, ClientsideSpawnEntity, ClientsideTransfer, 
+  ClientsideUpdateEntityPos, ClientsideUpdateEntityPosRot, ClientsideUpdateEntityRot, MultisideKeepAlive, 
+  ServersideAcceptTeleportation, ServersideClientCommand, ServersideMovePlayerPos, ServersideMovePlayerPosRot, ServersideMovePlayerRot,
+  ServersideMovePlayerStatusOnly, ServersidePingRequest, ServersidePong, ServersideSwingArm, ServersideUseItem
 };
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
@@ -48,6 +52,32 @@ pub enum ClientsidePlayPacket {
   Disconnect(ClientsideDisconnect),
   #[packet_id = 0x3F]
   PlayerChat(ClientsidePlayerChat),
+  #[packet_id = 0x7F]
+  Transfer(ClientsideTransfer),
+  #[packet_id = 0x62]
+  SetEntityLink(ClientsideSetEntityLink),
+  #[packet_id = 0x5D]
+  ChunkCacheRadius(ClientsideChunkCacheRadius),
+  #[packet_id = 0x5C]
+  ChunkCacheCenter(ClientsideChunkCacheCenter),
+  #[packet_id = 0x5B]
+  SetCamera(ClientsideSetCamera),
+  #[packet_id = 0x51]
+  RotateHead(ClientsideRotateHead),
+  #[packet_id = 0x52]
+  SectionBlocksUpdate(ClientsideSectionBlocksUpdate),
+  #[packet_id = 0x4F]
+  AddResourcePack(ClientsideAddResourcePack),
+  #[packet_id = 0x4E]
+  RemoveResourcePack(ClientsideRemoveResourcePack),
+  #[packet_id = 0x4C]
+  RemoveEntityEffect(ClientsideRemoveEntityEffect),
+  #[packet_id = 0x39]
+  OpenContainer(ClientsideOpenContainer),
+  #[packet_id = 0x37]
+  MoveVehicle(ClientsideMoveVehicle),
+  #[packet_id = 0x30]
+  Login(ClientsideLogin),
 }
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
