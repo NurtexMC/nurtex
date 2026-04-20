@@ -171,6 +171,115 @@ pub struct ClientsidePlayerChat {
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideTransfer {
+  pub server_host: String,
+  #[packet(varint)]
+  pub server_port: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideSetHeldItem {
+  #[packet(varint)]
+  pub slot: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideSetEntityLink {
+  #[packet(varint)]
+  pub attached_entity_id: i32,
+  #[packet(varint)]
+  pub holding_entity_id: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideChunkCacheRadius {
+  #[packet(varint)]
+  pub view_distance: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideChunkCacheCenter {
+  #[packet(varint)]
+  pub chunk_x: i32,
+  #[packet(varint)]
+  pub chunk_z: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideSetCamera {
+  #[packet(varint)]
+  pub camera_id: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideRotateHead {
+  #[packet(varint)]
+  pub entity_id: i32,
+  pub head_yaw: i8,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideSectionBlocksUpdate {
+  pub chunk_section_position: i64,
+  #[packet(vec_varlong)]
+  pub head_yaw: Vec<i64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideAddResourcePack {
+  pub uuid: uuid::Uuid,
+  pub url: String,
+  pub hash: String,
+  pub forced: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideRemoveResourcePack {
+  pub uuid: uuid::Uuid,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideRemoveEntityEffect {
+  #[packet(varint)]
+  pub entity_id: i32,
+  #[packet(varint)]
+  pub effect_id: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideOpenContainer {
+  #[packet(varint)]
+  pub window_id: i32,
+  #[packet(varint)]
+  pub window_type: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideMoveVehicle {
+  pub position: Vector3,
+  pub rotation: Rotation,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideLogin {
+  pub entity_id: i32,
+  pub is_hardcore: bool,
+  pub dimension_names: Vec<String>,
+  #[packet(varint)]
+  pub max_players: i32,
+  #[packet(varint)]
+  pub view_distance: i32,
+  #[packet(varint)]
+  pub simulation_distance: i32,
+  pub reduced_debug_info: bool,
+  pub enable_respawn_screen: bool,
+  #[packet(varint)]
+  pub dimension_type: i32,
+  pub dimension_name: String,
+  pub hashed_seed: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersidePong {
   pub id: i32,
 }

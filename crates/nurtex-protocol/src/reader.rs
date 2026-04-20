@@ -62,7 +62,12 @@ pub fn compression_decoder(stream: &mut Cursor<&[u8]>, compression_threshold: u3
   Some(decoded_buf.into_boxed_slice())
 }
 
-pub async fn read_packet<P: ProtocolPacket + Debug, R>(stream: &mut R, buffer: &mut Cursor<Vec<u8>>, compression_threshold: Option<u32>, cipher: &mut Option<AesDecryptor>) -> Option<P>
+pub async fn read_packet<P: ProtocolPacket + Debug, R>(
+  stream: &mut R,
+  buffer: &mut Cursor<Vec<u8>>,
+  compression_threshold: Option<u32>,
+  cipher: &mut Option<AesDecryptor>,
+) -> Option<P>
 where
   R: AsyncRead + Unpin + Send + Sync,
 {

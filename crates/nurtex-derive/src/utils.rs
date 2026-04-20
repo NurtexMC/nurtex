@@ -1,5 +1,5 @@
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Type, GenericArgument, PathArguments};
+use syn::{Data, DeriveInput, Fields, GenericArgument, PathArguments, Type};
 
 /// Функция получения атрибута пакета
 pub fn get_packet_attr(f: &syn::Field) -> Option<String> {
@@ -128,7 +128,7 @@ pub fn generate_read(input: &DeriveInput) -> proc_macro2::TokenStream {
               } else {
                 quote! { compile_error!("Option attribute requires Option<T> type") }
               }
-            },
+            }
             _ => {
               if is_option_type(ty) {
                 if let Some(inner_ty) = extract_option_inner_type(ty) {
@@ -187,7 +187,7 @@ pub fn generate_write(input: &DeriveInput) -> proc_macro2::TokenStream {
               } else {
                 quote! { compile_error!("Option attribute requires Option<T> type") }
               }
-            },
+            }
             _ => {
               if is_option_type(ty) {
                 if let Some(inner_ty) = extract_option_inner_type(ty) {
@@ -222,35 +222,33 @@ pub fn generate_write(input: &DeriveInput) -> proc_macro2::TokenStream {
 
 /// Функция извлечения ID пакета
 pub fn extract_packet_id(variant: &syn::Variant) -> Option<u32> {
-  variant.attrs.iter()
-    .find(|a| a.path().is_ident("packet_id"))
-    .and_then(|a| {
-      if let syn::Meta::NameValue(nv) = &a.meta {
-        if let syn::Expr::Lit(expr_lit) = &nv.value {
-          match &expr_lit.lit {
-            syn::Lit::Int(lit_int) => {
-              let s = lit_int.to_string();
-              if s.starts_with("0x") {
-                u32::from_str_radix(&s[2..], 16).ok()
-              } else {
-                lit_int.base10_parse::<u32>().ok()
-              }
+  variant.attrs.iter().find(|a| a.path().is_ident("packet_id")).and_then(|a| {
+    if let syn::Meta::NameValue(nv) = &a.meta {
+      if let syn::Expr::Lit(expr_lit) = &nv.value {
+        match &expr_lit.lit {
+          syn::Lit::Int(lit_int) => {
+            let s = lit_int.to_string();
+            if s.starts_with("0x") {
+              u32::from_str_radix(&s[2..], 16).ok()
+            } else {
+              lit_int.base10_parse::<u32>().ok()
             }
-            syn::Lit::Str(lit_str) => {
-              let s = lit_str.value();
-              if s.starts_with("0x") {
-                u32::from_str_radix(&s[2..], 16).ok()
-              } else {
-                s.parse::<u32>().ok()
-              }
-            }
-            _ => None
           }
-        } else {
-          None
+          syn::Lit::Str(lit_str) => {
+            let s = lit_str.value();
+            if s.starts_with("0x") {
+              u32::from_str_radix(&s[2..], 16).ok()
+            } else {
+              s.parse::<u32>().ok()
+            }
+          }
+          _ => None,
         }
       } else {
         None
       }
-    })
+    } else {
+      None
+    }
+  })
 }

@@ -6,9 +6,9 @@ mod utils;
 use utils::*;
 
 /// Макрос автоматической генерации `read` и `write` методов для пакета.
-/// 
+///
 /// **Доступные атрибуты:**
-/// 
+///
 /// - `#packet[skip]`: Просто игнорирование поля
 /// - `#packet[varint]`: Читает `i32` как `VarInt`
 /// - `#packet[varlong]`: Читает `i64` как `VarLong`
@@ -16,13 +16,13 @@ use utils::*;
 /// - `#packet[vec_varlong]`: Читает вектор из `i64` как `VarLong`
 /// - `#packet[vec_end]`: Читает все оставшиеся байты из пакета (применяется если поле в конце пакета)
 /// - `#packet[option]`: Корректно работает с опциональным значением
-/// 
+///
 /// Атрибуты `#packet[varint]` и `#packet[varlong]` нужны для точного определения типа, так как
-/// в пакеты записывается лишь полученное значение после чтения байтов через методы 
-/// трейтов `VarInt` / `VarLong`, соответственно макрос сам не может точно определить 
+/// в пакеты записывается лишь полученное значение после чтения байтов через методы
+/// трейтов `VarInt` / `VarLong`, соответственно макрос сам не может точно определить
 /// что за тип подразумевает поле (`VarInt` или просто `i32`, `VarLong` или просто `i64`)
-/// 
-/// Так же есть оговорка: Если в `Option<>` лежит `VarInt` / `VarLong` значение, 
+///
+/// Так же есть оговорка: Если в `Option<>` лежит `VarInt` / `VarLong` значение,
 /// то указывается атрибут `#packet[varint]` / `#packet[varlong]`, макрос
 /// автоматически определит `Option<>` и корректно достанет значение
 /// `VarInt` / `VarLong` из него
@@ -57,13 +57,11 @@ pub fn derive_packet_union(input: proc_macro::TokenStream) -> proc_macro::TokenS
   let input = parse_macro_input!(input as DeriveInput);
 
   let enum_name = &input.ident;
-  
+
   let variants = match &input.data {
     Data::Enum(data) => &data.variants,
     _ => {
-      return syn::Error::new_spanned(enum_name, "PacketUnion can only be applied to enums")
-        .to_compile_error()
-        .into();
+      return syn::Error::new_spanned(enum_name, "PacketUnion can only be applied to enums").to_compile_error().into();
     }
   };
 
@@ -82,7 +80,7 @@ pub fn derive_packet_union(input: proc_macro::TokenStream) -> proc_macro::TokenS
       syn::Fields::Unnamed(fields) => {
         if fields.unnamed.len() == 1 {
           let field_type = &fields.unnamed[0].ty;
-          
+
           quote! {
             impl crate::IntoPacket<#enum_name> for #field_type {
               fn into_packet(self) -> #enum_name {
@@ -123,7 +121,7 @@ pub fn derive_packet_union(input: proc_macro::TokenStream) -> proc_macro::TokenS
 
     let read_arms = variants.iter().filter_map(|variant| {
       let variant_name = &variant.ident;
-      
+
       match &variant.fields {
         syn::Fields::Unnamed(fields) => {
           if fields.unnamed.len() == 1 {
@@ -137,13 +135,13 @@ pub fn derive_packet_union(input: proc_macro::TokenStream) -> proc_macro::TokenS
             None
           }
         }
-        _ => None
+        _ => None,
       }
     });
 
     let write_arms = variants.iter().map(|variant| {
       let variant_name = &variant.ident;
-      
+
       quote! {
         Self::#variant_name(p) => p.write(buf),
       }

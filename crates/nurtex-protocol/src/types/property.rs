@@ -12,7 +12,7 @@ impl Buffer for Property {
     Some(Self {
       name: String::read_buf(buffer)?,
       value: String::read_buf(buffer)?,
-      signature: Option::read_buf(buffer)?
+      signature: Option::read_buf(buffer)?,
     })
   }
 
