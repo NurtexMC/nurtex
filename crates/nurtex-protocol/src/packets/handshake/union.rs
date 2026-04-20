@@ -7,9 +7,11 @@ use crate::Packet;
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
 pub enum ServersideHandshakePacket {
-  #[packet_id = "0x00"]
+  #[packet_id = 0x00]
   Greet(ServersideGreet),
 }
+
+// В состоянии Handshake нету Clientside пакетов
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ClientsideHandshakePacket {}
