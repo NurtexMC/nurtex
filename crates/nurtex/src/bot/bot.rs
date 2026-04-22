@@ -184,9 +184,7 @@ impl Bot {
         Err(_) => return Ok(()),
       };
 
-      let profile_data = {
-        profile.read().await.clone()
-      };
+      let profile_data = { profile.read().await.clone() };
 
       conn
         .write_handshake_packet(ServersideHandshakePacket::Greet(ServersideGreet {
@@ -200,9 +198,9 @@ impl Bot {
       conn.set_state(ConnectionState::Login);
 
       conn
-        .write_login_packet(ServersideLoginPacket::LoginStart(ServersideLoginStart { 
-          username: profile_data.username.clone(), 
-          uuid: profile_data.uuid 
+        .write_login_packet(ServersideLoginPacket::LoginStart(ServersideLoginStart {
+          username: profile_data.username.clone(),
+          uuid: profile_data.uuid,
         }))
         .await?;
 
