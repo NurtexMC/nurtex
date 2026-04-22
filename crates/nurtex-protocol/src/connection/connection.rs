@@ -1,12 +1,12 @@
 use std::fmt::Debug;
 use std::io::{self, Cursor};
-use std::net::SocketAddr;
 
 use nurtex_encrypt::{AesDecryptor, AesEncryptor};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
+use crate::connection::address::NurtexAddr;
 use crate::packets::{
   configuration::{ClientsideConfigurationPacket, ServersideConfigurationPacket},
   handshake::{ClientsideHandshakePacket, ServersideHandshakePacket},
@@ -87,8 +87,8 @@ pub struct NurtexConnection {
 
 impl NurtexConnection {
   /// Метод создания нового подключения
-  pub async fn new(address: &SocketAddr) -> io::Result<Self> {
-    let stream = TcpStream::connect(address).await?;
+  pub async fn new(address: &NurtexAddr) -> io::Result<Self> {
+    let stream = TcpStream::connect(address.unpack()).await?;
     stream.set_nodelay(true)?;
     Self::new_from_stream(stream).await
   }

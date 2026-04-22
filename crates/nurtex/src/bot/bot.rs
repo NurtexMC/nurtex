@@ -172,11 +172,10 @@ impl Bot {
     let connection = self.connection.clone();
     let profile = self.profile.clone();
     let speedometer = self.speedometer.clone();
-
     let host = server_host.into();
 
     tokio::spawn(async move {
-      let Some(addr): Option<std::net::SocketAddr> = convert_address(format!("{}:{}", host, server_port)) else {
+      let Some(addr) = convert_address(format!("{}:{}", host, server_port)) else {
         return Err(Error::new(ErrorKind::AddrNotAvailable, "Failed to convert target address"));
       };
 
@@ -185,18 +184,15 @@ impl Bot {
         Err(_) => return Ok(()),
       };
 
-      let (username, uuid, protocol_version) = {
-        let guard = profile.read().await;
-        (guard.username.clone(), guard.uuid, guard.protocol_version)
+      let profile_data = {
+        profile.read().await.clone()
       };
-
-      let username_for_speedometer = username.clone();
 
       conn
         .write_handshake_packet(ServersideHandshakePacket::Greet(ServersideGreet {
-          protocol_version: protocol_version,
-          server_host: addr.ip().to_string(),
-          server_port: addr.port(),
+          protocol_version: profile_data.protocol_version,
+          server_host: host,
+          server_port: server_port,
           intention: ClientIntention::Login,
         }))
         .await?;
@@ -204,7 +200,10 @@ impl Bot {
       conn.set_state(ConnectionState::Login);
 
       conn
-        .write_login_packet(ServersideLoginPacket::LoginStart(ServersideLoginStart { username: username, uuid: uuid }))
+        .write_login_packet(ServersideLoginPacket::LoginStart(ServersideLoginStart { 
+          username: profile_data.username.clone(), 
+          uuid: profile_data.uuid 
+        }))
         .await?;
 
       loop {
@@ -283,7 +282,7 @@ impl Bot {
       *connection.write().await = Some(conn);
 
       if let Some(speedometer) = speedometer {
-        speedometer.bot_joined(username_for_speedometer);
+        speedometer.bot_joined(profile_data.username);
       }
 
       Ok(())
