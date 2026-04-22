@@ -2,38 +2,64 @@ use std::io::{self, Error, ErrorKind};
 use std::sync::Arc;
 use std::time::Duration;
 
-use nurtex_protocol::connection::NurtexConnection;
 use nurtex_protocol::connection::address::convert_address;
 use nurtex_protocol::connection::utils::handle_encryption_request;
-use nurtex_protocol::connection::{ClientsidePacket, ConnectionState};
-use nurtex_protocol::packets::configuration::ServersideResourcePackResponse;
-use nurtex_protocol::packets::configuration::{ClientsideConfigurationPacket, ServersideAcknowledgeFinishConfiguration, ServersideConfigurationPacket, ServersideKnownPacks};
-use nurtex_protocol::packets::handshake::{ServersideGreet, ServersideHandshakePacket};
-use nurtex_protocol::packets::login::{ClientsideLoginPacket, ServersideLoginAcknowledged, ServersideLoginPacket, ServersideLoginStart};
-use nurtex_protocol::packets::play::ServersidePlayPacket;
+use nurtex_protocol::connection::{ClientsidePacket, ConnectionState, NurtexConnection};
+use nurtex_protocol::packets::{
+  configuration::{ClientsideConfigurationPacket, ServersideAcknowledgeFinishConfiguration, ServersideConfigurationPacket, ServersideKnownPacks, ServersideResourcePackResponse},
+  handshake::{ServersideGreet, ServersideHandshakePacket},
+  login::{ClientsideLoginPacket, ServersideLoginAcknowledged, ServersideLoginPacket, ServersideLoginStart},
+  play::ServersidePlayPacket,
+};
 use nurtex_protocol::types::{ClientIntention, ResourcePackState};
 use tokio::sync::{RwLock, broadcast};
 use tokio::task::JoinHandle;
-use tokio::time::sleep;
 
-use crate::profile::ClientProfile;
-use crate::structs::ClientInfo;
-use crate::version::get_protocol_from_version;
+use crate::bot::{BotProfile, ClientInfo, get_protocol_from_version};
+use crate::swarm::{Speedometer, SwarmObject};
 
-/// Структура Minecraft клиента
-pub struct Client {
-  profile: Arc<RwLock<ClientProfile>>,
+/// Структура Minecraft бота
+pub struct Bot {
+  username: String,
+  profile: Arc<RwLock<BotProfile>>,
   handle: Option<JoinHandle<Result<(), Error>>>,
   connection: Arc<RwLock<Option<NurtexConnection>>>,
   reader: Arc<broadcast::Sender<ClientsidePacket>>,
   writer: Arc<broadcast::Sender<ServersidePlayPacket>>,
+  speedometer: Option<Arc<Speedometer>>,
 }
 
-impl Client {
-  /// Метод создания нового клиента
+impl Bot {
+  /// Метод создания нового бота
   pub fn create(username: impl Into<String>, version: impl Into<String>) -> Self {
-    let (reader_tx, _) = broadcast::channel(45);
-    let (writer_tx, _) = broadcast::channel(45);
+    Self::create_with_options(username, version, 45, 45, None)
+  }
+
+  /// Метод создания нового бота из объекта роя
+  pub fn create_from_object(object: SwarmObject) -> Self {
+    Self::create_with_options(object.username, object.version, object.reader_capacity, object.writer_capacity, None)
+  }
+
+  /// Метод создания нового бота со спидометром
+  pub fn create_with_speedometer(username: impl Into<String>, version: impl Into<String>, speedometer: Arc<Speedometer>) -> Self {
+    Self::create_with_options(username, version, 45, 45, Some(speedometer))
+  }
+
+  /// Метод создания нового бота из объекта роя со спидометром
+  pub fn create_from_object_with_speedometer(object: SwarmObject, speedometer: Arc<Speedometer>) -> Self {
+    Self::create_with_options(object.username, object.version, object.reader_capacity, object.writer_capacity, Some(speedometer))
+  }
+
+  /// Метод создания нового бота с заданными опциями
+  pub fn create_with_options(
+    username: impl Into<String>,
+    version: impl Into<String>,
+    reader_capacity: usize,
+    writer_capacity: usize,
+    speedometer: Option<Arc<Speedometer>>,
+  ) -> Self {
+    let (reader_tx, _) = broadcast::channel(reader_capacity);
+    let (writer_tx, _) = broadcast::channel(writer_capacity);
 
     let reader = Arc::new(reader_tx);
     let writer = Arc::new(writer_tx);
@@ -42,18 +68,21 @@ impl Client {
     Self::run_reader(conn.clone(), reader.clone());
     Self::run_writer(conn.clone(), writer.clone());
 
-    let profile = ClientProfile::new(username.into(), get_protocol_from_version(&version.into()));
+    let name = username.into();
+    let profile = BotProfile::new(name.clone(), get_protocol_from_version(&version.into()));
 
     Self {
+      username: name,
       profile: Arc::new(RwLock::new(profile)),
       handle: None,
       connection: conn,
       reader: reader,
       writer: writer,
+      speedometer,
     }
   }
 
-  /// Метод запуска `reader` (выполняется автоматически при создании клиента через `Client::create`)
+  /// Метод запуска `reader` (выполняется автоматически при создании бота через `Bot::create`)
   pub fn run_reader(connection: Arc<RwLock<Option<NurtexConnection>>>, reader_tx: Arc<broadcast::Sender<ClientsidePacket>>) {
     tokio::spawn(async move {
       loop {
@@ -65,13 +94,13 @@ impl Client {
         if let Some(packet) = packet {
           let _ = reader_tx.send(packet);
         } else {
-          sleep(Duration::from_millis(10)).await;
+          tokio::time::sleep(Duration::from_millis(10)).await;
         }
       }
     });
   }
 
-  /// Метод запуска `writer` (выполняется автоматически при создании клиента через `Client::create`)
+  /// Метод запуска `writer` (выполняется автоматически при создании бота через `Bot::create`)
   pub fn run_writer(connection: Arc<RwLock<Option<NurtexConnection>>>, writer_tx: Arc<broadcast::Sender<ServersidePlayPacket>>) {
     let mut rx = writer_tx.subscribe();
 
@@ -93,13 +122,18 @@ impl Client {
   }
 
   /// Метод получения юзернейма
-  pub async fn get_username(&self) -> String {
-    self.profile.read().await.username.clone()
+  pub fn username(&self) -> &str {
+    &self.username
   }
 
-  /// Метод получения профиля клиента
-  pub fn get_profile(&self) -> Arc<RwLock<ClientProfile>> {
-    self.profile.clone()
+  /// Метод получения профиля бота
+  pub fn get_profile(&self) -> Arc<RwLock<BotProfile>> {
+    Arc::clone(&self.profile)
+  }
+
+  /// Вспомогательный метод подписки на слушание пакетов
+  pub fn subscribe_to_reader(&self) -> broadcast::Receiver<ClientsidePacket> {
+    self.reader.subscribe()
   }
 
   /// Метод получения копии `reader`
@@ -122,19 +156,26 @@ impl Client {
     &self.handle
   }
 
-  /// Метод отправки пакета в `broadcast` канал
+  /// Метод отправки пакета
   pub fn send_packet(&self, packet: ServersidePlayPacket) {
     let _ = self.writer.send(packet);
   }
 
-  /// Метод создания соединения с сервером и отправки базовой информации
-  pub fn connect_to(&mut self, server_host: impl Into<String>, server_port: u16) {
+  /// Метод подключения бота к серверу
+  pub fn connect(&mut self, server_host: impl Into<String>, server_port: u16) {
+    let handle = self.connect_with_handle(server_host, server_port);
+    self.handle = Some(handle);
+  }
+
+  /// Метод подключения бота к серверу, который возвращает `handle` задачи подключения
+  pub fn connect_with_handle(&self, server_host: impl Into<String>, server_port: u16) -> JoinHandle<Result<(), Error>> {
     let connection = self.connection.clone();
     let profile = self.profile.clone();
+    let speedometer = self.speedometer.clone();
 
     let host = server_host.into();
 
-    let handle = tokio::spawn(async move {
+    tokio::spawn(async move {
       let Some(addr): Option<std::net::SocketAddr> = convert_address(format!("{}:{}", host, server_port)) else {
         return Err(Error::new(ErrorKind::AddrNotAvailable, "Failed to convert target address"));
       };
@@ -148,6 +189,8 @@ impl Client {
         let guard = profile.read().await;
         (guard.username.clone(), guard.uuid, guard.protocol_version)
       };
+
+      let username_for_speedometer = username.clone();
 
       conn
         .write_handshake_packet(ServersideHandshakePacket::Greet(ServersideGreet {
@@ -239,61 +282,69 @@ impl Client {
 
       *connection.write().await = Some(conn);
 
-      Ok(())
-    });
+      if let Some(speedometer) = speedometer {
+        speedometer.bot_joined(username_for_speedometer);
+      }
 
-    self.handle = Some(handle);
+      Ok(())
+    })
   }
 
   /// Метод отключения клиента
   pub async fn shutdown(&self) -> io::Result<()> {
     if let Some(handle) = &self.handle {
       handle.abort();
+      *self.connection.write().await = None;
     } else if let Some(conn) = self.connection.write().await.as_mut() {
       conn.shutdown().await?;
     }
 
     Ok(())
   }
+
+  /// Метод отмены хэндла клиента
+  pub fn abort_handle(&self) {
+    if let Some(handle) = &self.handle {
+      handle.abort();
+    }
+  }
 }
 
 #[cfg(test)]
 mod tests {
-  use std::io;
-  use std::time::Duration;
+  use std::{io, time::Duration};
 
-  use nurtex_protocol::connection::ClientsidePacket;
-  use nurtex_protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket};
+  use nurtex_protocol::{
+    connection::ClientsidePacket,
+    packets::play::{ClientsidePlayPacket, MultisideKeepAlive, ServersidePlayPacket, ServersideSwingArm},
+    types::RelativeHand,
+  };
 
-  use crate::Client;
+  use crate::bot::Bot;
 
   #[tokio::test]
-  async fn create_client() -> io::Result<()> {
-    for i in 0..6 {
-      tokio::spawn(async move {
-        let mut client = Client::create(format!("NurtexBot_{}", i), "1.21.11");
+  async fn test_packet_handling() -> io::Result<()> {
+    let mut bot = Bot::create("nurtex_bot", "1.21.11");
 
-        client.connect_to("localhost", 25565);
+    bot.connect("localhost", 25565);
 
-        let reader = client.get_reader();
-        let mut packet_rx = reader.subscribe();
+    let mut reader = bot.subscribe_to_reader();
 
-        loop {
-          if let Ok(ClientsidePacket::Play(packet)) = packet_rx.recv().await {
-            println!("Получен пакет: {:?}", packet);
+    loop {
+      if let Ok(ClientsidePacket::Play(packet)) = reader.recv().await {
+        println!("Бот {} получил пакет: {:?}", bot.username(), packet);
 
-            match packet {
-              ClientsidePlayPacket::KeepAlive(p) => {
-                client.send_packet(ServersidePlayPacket::KeepAlive(nurtex_protocol::packets::play::MultisideKeepAlive { id: p.id }));
-              }
-              _ => {}
-            }
+        match packet {
+          ClientsidePlayPacket::KeepAlive(p) => {
+            bot.send_packet(ServersidePlayPacket::KeepAlive(MultisideKeepAlive { id: p.id }));
+            bot.send_packet(ServersidePlayPacket::SwingArm(ServersideSwingArm { hand: RelativeHand::MainHand }));
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            break;
           }
+          _ => {}
         }
-      });
+      }
     }
-
-    tokio::time::sleep(Duration::from_secs(30)).await;
 
     Ok(())
   }

@@ -12,7 +12,7 @@ mod tests {
   use nurtex_protocol::packets::handshake::{ServersideGreet, ServersideHandshakePacket};
   use nurtex_protocol::packets::login::{ClientsideLoginPacket, ServersideLoginAcknowledged, ServersideLoginPacket, ServersideLoginStart};
   use nurtex_protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket};
-  use nurtex_protocol::types::{AccurateHand, ClientIntention, DisplayedSkinParts, ResourcePackState};
+  use nurtex_protocol::types::{AccurateHand, ChatMode, ClientIntention, DisplayedSkinParts, ParticleStatus, ResourcePackState};
 
   #[tokio::test]
   async fn create_client() -> io::Result<()> {
@@ -70,13 +70,13 @@ mod tests {
       .write_configuration_packet(ServersideConfigurationPacket::ClientInformation(ServersideClientInformation {
         locale: "en_US".to_string(),
         view_distance: 10,
-        chat_mode: 0,
+        chat_mode: ChatMode::Enabled,
         chat_colors: true,
         displayed_skin_parts: DisplayedSkinParts::default(),
         main_hand: AccurateHand::Right,
         enable_text_filtering: false,
         allow_server_listings: true,
-        particle_status: 0,
+        particle_status: ParticleStatus::Minimal,
       }))
       .await?;
 

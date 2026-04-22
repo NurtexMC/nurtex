@@ -1,7 +1,7 @@
 use nurtex_codec::Buffer;
 use nurtex_derive::Packet;
 
-use crate::types::{AccurateHand, DisplayedSkinParts, KnownPack, ReportDetail, ResourcePackState, ServerLink, TagGroup};
+use crate::types::{AccurateHand, ChatMode, DisplayedSkinParts, KnownPack, ParticleStatus, ReportDetail, ResourcePackState, ServerLink, TagGroup};
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct MultisideKeepAlive {
@@ -103,15 +103,13 @@ pub struct ClientsideServerLinks {
 pub struct ServersideClientInformation {
   pub locale: String,
   pub view_distance: i8,
-  #[packet(varint)]
-  pub chat_mode: i32,
+  pub chat_mode: ChatMode,
   pub chat_colors: bool,
   pub displayed_skin_parts: DisplayedSkinParts,
   pub main_hand: AccurateHand,
   pub enable_text_filtering: bool,
   pub allow_server_listings: bool,
-  #[packet(varint)]
-  pub particle_status: i32,
+  pub particle_status: ParticleStatus,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]

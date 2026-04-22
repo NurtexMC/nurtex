@@ -1,18 +1,18 @@
 [package]
-name = "nurtex-client"
-version = "0.1.0"
+name = "nurtex"
+version = "1.0.0"
 edition = "2024"
 license = "MIT"
-description = "Library for creating Minecraft clients."
+description = "Library for creating Minecraft bots."
 repository = "https://github.com/NurtexMC/nurtex"
 homepage = "https://github.com/NurtexMC/nurtex"
-documentation = "https://docs.rs/nurtex-client/latest/"
+documentation = "https://docs.rs/nurtex/latest/"
 readme = "README.md"
-keywords = ["minecraft", "client"]
-categories = ["games"]
+keywords = ["minecraft", "bot", "async", "simple"]
+categories = ["games", "asynchronous"]
 
 [lib]
-name = "nurtex_client"
+name = "nurtex"
 path = "src/lib.rs"
 
 [dependencies]
