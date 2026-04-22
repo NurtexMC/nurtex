@@ -59,7 +59,6 @@ pub struct ServersideEncryptionResponse {
 pub struct ServersidePluginResponse {
   #[packet(varint)]
   pub message_id: i32,
-  #[packet(option)]
   pub data: Option<Vec<u8>>,
 }
 
@@ -69,6 +68,5 @@ pub struct ServersideLoginAcknowledged;
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersideCookieResponse {
   pub key: String,
-  #[packet(option)]
   pub payload: Option<Vec<u8>>,
 }

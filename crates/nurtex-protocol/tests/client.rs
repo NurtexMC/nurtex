@@ -15,7 +15,7 @@ mod tests {
   use nurtex_protocol::types::{AccurateHand, ChatMode, ClientIntention, DisplayedSkinParts, ParticleStatus, ResourcePackState};
 
   #[tokio::test]
-  async fn create_client() -> io::Result<()> {
+  async fn test_client() -> io::Result<()> {
     let addr = convert_address("localhost:25565").unwrap();
 
     let mut conn = match NurtexConnection::new(&addr).await {

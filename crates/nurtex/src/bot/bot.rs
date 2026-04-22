@@ -51,12 +51,7 @@ impl Bot {
   }
 
   /// Метод создания нового бота с заданными опциями
-  pub fn create_with_options(
-    username: impl Into<String>,
-    reader_capacity: usize,
-    writer_capacity: usize,
-    speedometer: Option<Arc<Speedometer>>,
-  ) -> Self {
+  pub fn create_with_options(username: impl Into<String>, reader_capacity: usize, writer_capacity: usize, speedometer: Option<Arc<Speedometer>>) -> Self {
     let (reader_tx, _) = broadcast::channel(reader_capacity);
     let (writer_tx, _) = broadcast::channel(writer_capacity);
 
