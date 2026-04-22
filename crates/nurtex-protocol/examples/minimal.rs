@@ -27,8 +27,8 @@ async fn main() -> io::Result<()> {
   conn
     .write_handshake_packet(ServersideHandshakePacket::Greet(ServersideGreet {
       protocol_version: 774, // Версия 1.21.11
-      server_host: addr.ip().to_string(),
-      server_port: addr.port(),
+      server_host: addr.get_ip(),
+      server_port: addr.get_port(),
       intention: ClientIntention::Login,
     }))
     .await?;
