@@ -46,7 +46,6 @@ pub struct ClientsideRegistryData {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideRemoveResourcePack {
-  #[packet(option)]
   pub uuid: Option<uuid::Uuid>,
 }
 
@@ -56,7 +55,6 @@ pub struct ClientsideAddResourcePack {
   pub url: String,
   pub hash: String,
   pub forced: bool,
-  #[packet(option)]
   pub prompt_message: Option<String>,
 }
 
@@ -115,7 +113,6 @@ pub struct ServersideClientInformation {
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersideCookieResponse {
   pub key: String,
-  #[packet(option)]
   pub payload: Option<Vec<u8>>,
 }
 

@@ -2,7 +2,7 @@ use nurtex_codec::Buffer;
 use nurtex_derive::Packet;
 use uuid::Uuid;
 
-use crate::types::{ClientCommand, LpVector3, PhysicsFlags, RelativeHand, Rotation, TeleportFlags, Vector3};
+use crate::types::{BlockPosition, ClientCommand, Face, GameEvent, InteractType, LpVector3, PhysicsFlags, PlayerAction, PlayerCommand, RelativeHand, ResourcePackState, Rotation, TeleportFlags, Vector3};
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct MultisideKeepAlive {
@@ -154,7 +154,9 @@ pub struct ClientsideRemoveEntities {
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
-pub struct ClientsideDisconnect;
+pub struct ClientsideDisconnect {
+  pub reason: String,
+}
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsidePlayerChat {
@@ -163,7 +165,6 @@ pub struct ClientsidePlayerChat {
   pub sender_uuid: Uuid,
   #[packet(varint)]
   pub index: i32,
-  #[packet(option)]
   pub message_signature: Option<Vec<u8>>,
   pub message: String,
   pub timestamp: i64,
@@ -280,6 +281,45 @@ pub struct ClientsideLogin {
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideEntityPositionSync {
+  #[packet(varint)]
+  pub entity_id: i32,
+  pub position: Vector3,
+  pub velocity: Vector3,
+  pub rotation: Rotation,
+  pub on_ground: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideExplosion {
+  pub position: Vector3,
+  pub radius: f32,
+  pub block_count: i32,
+  pub player_delta_velocity: Option<Vector3>,
+  #[packet(varint)]
+  pub explosion_particle_id: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideUnloadChunk {
+  pub chunk_x: i32,
+  pub chunk_z: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideGameEvent {
+  pub event: GameEvent,
+  pub value: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideClearChat {
+  #[packet(varint)]
+  pub message_id: i32,
+  pub signature: Option<Vec<u8>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersidePong {
   pub id: i32,
 }
@@ -335,4 +375,50 @@ pub struct ServersideMovePlayerStatusOnly {
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersideClientCommand {
   pub command: ClientCommand,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ServersideChatCommand {
+  pub command: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ServersideSetHeldItem {
+  pub slot: i16,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ServersideInteract {
+  #[packet(varint)]
+  pub entity: i32,
+  pub interact_type: InteractType,
+  pub target_x: Option<f32>,
+  pub target_y: Option<f32>,
+  pub target_z: Option<f32>,
+  pub hand: Option<RelativeHand>,
+  pub sneak_key_pressed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ServersidePlayerAction {
+  pub action: PlayerAction,
+  pub block_pos: BlockPosition,
+  pub face: Face,
+  #[packet(varint)]
+  pub sequence: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ServersidePlayerCommand {
+  #[packet(varint)]
+  pub entity_id: i32,
+  pub command: PlayerCommand,
+  #[packet(varint)]
+  pub jump_boost: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ServersideResourcePackResponse {
+  pub uuid: Uuid,
+  pub state: ResourcePackState,
 }

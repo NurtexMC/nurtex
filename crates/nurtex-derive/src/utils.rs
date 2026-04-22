@@ -26,11 +26,6 @@ pub fn extract_option_inner_type(ty: &Type) -> Option<Type> {
   None
 }
 
-/// Функция проверки, является ли тип Option<T>
-pub fn is_option_type(ty: &Type) -> bool {
-  extract_option_inner_type(ty).is_some()
-}
-
 /// Функция генерации кода для чтения значения с учётом атрибута
 fn generate_read_value(ty: &Type, attr: Option<&str>) -> proc_macro2::TokenStream {
   match attr {
@@ -114,40 +109,18 @@ pub fn generate_read(input: &DeriveInput) -> proc_macro2::TokenStream {
 
           let attr = get_packet_attr(f);
 
-          match attr.as_deref() {
-            Some("skip") => quote! {},
-            Some("option") => {
-              if let Some(inner_ty) = extract_option_inner_type(ty) {
-                quote! {
-                  #name: if <bool as nurtex_codec::Buffer>::read_buf(buffer)? {
-                    Some(<#inner_ty as nurtex_codec::Buffer>::read_buf(buffer)?)
-                  } else {
-                    None
-                  }
-                }
+          if let Some(inner_ty) = extract_option_inner_type(ty) {
+            let read_value = generate_read_value(&inner_ty, attr.as_deref());
+            quote! {
+              #name: if <bool as nurtex_codec::Buffer>::read_buf(buffer)? {
+                Some(#read_value)
               } else {
-                quote! { compile_error!("Option attribute requires Option<T> type") }
+                None
               }
             }
-            _ => {
-              if is_option_type(ty) {
-                if let Some(inner_ty) = extract_option_inner_type(ty) {
-                  let read_value = generate_read_value(&inner_ty, attr.as_deref());
-                  quote! {
-                    #name: if <bool as nurtex_codec::Buffer>::read_buf(buffer)? {
-                      Some(#read_value)
-                    } else {
-                      None
-                    }
-                  }
-                } else {
-                  quote! { compile_error!("Failed to extract Option inner type") }
-                }
-              } else {
-                let read_value = generate_read_value(ty, attr.as_deref());
-                quote! { #name: #read_value }
-              }
-            }
+          } else {
+            let read_value = generate_read_value(ty, attr.as_deref());
+            quote! { #name: #read_value }
           }
         });
 
@@ -174,38 +147,17 @@ pub fn generate_write(input: &DeriveInput) -> proc_macro2::TokenStream {
           let ty = &f.ty;
           let attr = get_packet_attr(f);
 
-          match attr.as_deref() {
-            Some("skip") => quote! {},
-            Some("option") => {
-              if let Some(inner_ty) = extract_option_inner_type(ty) {
-                quote! {
-                  <bool as nurtex_codec::Buffer>::write_buf(&self.#name.is_some(), buffer)?;
-                  if let Some(val) = &self.#name {
-                    <#inner_ty as nurtex_codec::Buffer>::write_buf(val, buffer)?;
-                  }
-                }
-              } else {
-                quote! { compile_error!("Option attribute requires Option<T> type") }
+          if let Some(inner_ty) = extract_option_inner_type(ty) {
+            let write_value = generate_write_value(quote! { val }, &inner_ty, attr.as_deref());
+            quote! {
+              <bool as nurtex_codec::Buffer>::write_buf(&self.#name.is_some(), buffer)?;
+              if let Some(val) = &self.#name {
+                #write_value
               }
             }
-            _ => {
-              if is_option_type(ty) {
-                if let Some(inner_ty) = extract_option_inner_type(ty) {
-                  let write_value = generate_write_value(quote! { val }, &inner_ty, attr.as_deref());
-                  quote! {
-                    <bool as nurtex_codec::Buffer>::write_buf(&self.#name.is_some(), buffer)?;
-                    if let Some(val) = &self.#name {
-                      #write_value
-                    }
-                  }
-                } else {
-                  quote! { compile_error!("Failed to extract Option inner type") }
-                }
-              } else {
-                let write_value = generate_write_value(quote! { self.#name }, ty, attr.as_deref());
-                quote! { #write_value }
-              }
-            }
+          } else {
+            let write_value = generate_write_value(quote! { self.#name }, ty, attr.as_deref());
+            quote! { #write_value }
           }
         });
 
