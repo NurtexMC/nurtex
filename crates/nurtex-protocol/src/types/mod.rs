@@ -1,6 +1,8 @@
+mod chat_mode;
 mod client_command;
 mod intention;
 mod known_pack;
+mod particle_status;
 mod physics_flags;
 mod player_hand;
 mod player_skin;
@@ -13,9 +15,11 @@ mod tag_group;
 mod teleport_flags;
 mod vector;
 
+pub use chat_mode::*;
 pub use client_command::*;
 pub use intention::*;
 pub use known_pack::*;
+pub use particle_status::*;
 pub use physics_flags::*;
 pub use player_hand::*;
 pub use player_skin::*;
