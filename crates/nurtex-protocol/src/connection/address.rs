@@ -27,7 +27,7 @@ impl NurtexAddr {
     None
   }
 
-  /// Метод получения `SocketAddr` 
+  /// Метод получения `SocketAddr`
   pub fn unpack(&self) -> SocketAddr {
     self.0
   }
