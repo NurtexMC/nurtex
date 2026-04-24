@@ -1,10 +1,8 @@
-use std::io::{self, Error};
+use std::io::{self};
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::task::JoinHandle;
-
-use crate::bot::Bot;
+use crate::bot::{Bot, BotHandle};
 use crate::swarm::{Speedometer, SwarmObject};
 
 /// Структура роя ботов
@@ -13,7 +11,7 @@ pub struct Swarm {
   pub bots: Vec<Arc<Bot>>,
 
   /// Список всех хэндлов
-  handles: Vec<JoinHandle<Result<(), Error>>>,
+  handles: Vec<BotHandle>,
 
   /// Спидометр (опционально)
   speedometer: Option<Arc<Speedometer>>,

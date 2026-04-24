@@ -1,6 +1,7 @@
 mod block_position;
 mod chat_mode;
 mod client_command;
+mod experience;
 mod face;
 mod game_event;
 mod intention;
@@ -25,6 +26,7 @@ mod vector;
 pub use block_position::*;
 pub use chat_mode::*;
 pub use client_command::*;
+pub use experience::*;
 pub use face::*;
 pub use game_event::*;
 pub use intention::*;
