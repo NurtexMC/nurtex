@@ -18,7 +18,7 @@ async fn main() -> io::Result<()> {
   let addr = convert_address("localhost:25565").unwrap();
 
   // Создаём подключение (состояние Handshake)
-  let mut conn = match NurtexConnection::new(&addr).await {
+  let conn = match NurtexConnection::new(&addr).await {
     Ok(c) => c,
     Err(_) => return Ok(()),
   };
@@ -34,7 +34,7 @@ async fn main() -> io::Result<()> {
     .await?;
 
   // Меняем состояние подключения на Login
-  conn.set_state(ConnectionState::Login);
+  conn.set_state(ConnectionState::Login).await;
 
   // Отправляем пакет LoginStart где указываем имя клиента и UUID (для оффлайн серверов просто нулевой)
   conn
@@ -50,13 +50,13 @@ async fn main() -> io::Result<()> {
       match p {
         ClientsideLoginPacket::Compression(p) => {
           // Устанавливаем порог сжатия
-          conn.set_compression_threshold(p.compression_threshold);
+          conn.set_compression_threshold(p.compression_threshold).await;
         }
         ClientsideLoginPacket::EncryptionRequest(request) => {
           // Пробуем обработать запрос шифрования
           if let Some((response, secret_key)) = handle_encryption_request(&request) {
             conn.write_login_packet(ServersideLoginPacket::EncryptionResponse(response)).await?;
-            conn.set_encryption_key(secret_key);
+            conn.set_encryption_key(secret_key).await;
           }
         }
         ClientsideLoginPacket::LoginSuccess(_p) => {
@@ -72,7 +72,7 @@ async fn main() -> io::Result<()> {
   }
 
   // Меняем состояние подключения на Configuration
-  conn.set_state(ConnectionState::Configuration);
+  conn.set_state(ConnectionState::Configuration).await;
 
   // Отправляем опции клиента
   conn
@@ -137,7 +137,7 @@ async fn main() -> io::Result<()> {
   }
 
   // Меняем состояние подключения на Play
-  conn.set_state(ConnectionState::Play);
+  conn.set_state(ConnectionState::Play).await;
 
   // Создаём цикл обработки пакетов в состоянии Play
   loop {

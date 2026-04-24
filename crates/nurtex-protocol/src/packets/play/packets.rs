@@ -2,7 +2,7 @@ use nurtex_codec::Buffer;
 use nurtex_derive::Packet;
 use uuid::Uuid;
 
-use crate::types::{BlockPosition, ClientCommand, Face, GameEvent, InteractType, LastSeenMessage, LpVector3, PhysicsFlags, PlayerAction, PlayerCommand, RelativeHand, ResourcePackState, Rotation, TeleportFlags, Vector3};
+use crate::types::{BlockPosition, ClientCommand, Experience, Face, GameEvent, InteractType, LastSeenMessage, LpVector3, PhysicsFlags, PlayerAction, PlayerCommand, RelativeHand, ResourcePackState, Rotation, TeleportFlags, Vector3};
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct MultisideKeepAlive {
@@ -109,11 +109,7 @@ pub struct ClientsideSetHealth {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSetExperience {
-  pub experience_bar: f32,
-  #[packet(varint)]
-  pub level: i32,
-  #[packet(varint)]
-  pub total_experience: i32,
+  pub experience: Experience,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]

@@ -18,7 +18,7 @@ mod tests {
   async fn test_client() -> io::Result<()> {
     let addr = convert_address("localhost:25565").unwrap();
 
-    let mut conn = match NurtexConnection::new(&addr).await {
+    let conn = match NurtexConnection::new(&addr).await {
       Ok(c) => c,
       Err(_) => return Ok(()),
     };
@@ -32,7 +32,7 @@ mod tests {
       }))
       .await?;
 
-    conn.set_state(ConnectionState::Login);
+    conn.set_state(ConnectionState::Login).await;
 
     conn
       .write_login_packet(ServersideLoginPacket::LoginStart(ServersideLoginStart {
@@ -45,12 +45,12 @@ mod tests {
       if let Some(p) = conn.read_login_packet().await {
         match p {
           ClientsideLoginPacket::Compression(p) => {
-            conn.set_compression_threshold(p.compression_threshold);
+            conn.set_compression_threshold(p.compression_threshold).await;
           }
           ClientsideLoginPacket::EncryptionRequest(request) => {
             if let Some((response, secret_key)) = handle_encryption_request(&request) {
               conn.write_login_packet(ServersideLoginPacket::EncryptionResponse(response)).await?;
-              conn.set_encryption_key(secret_key);
+              conn.set_encryption_key(secret_key).await;
             }
           }
           ClientsideLoginPacket::LoginSuccess(_p) => {
@@ -64,7 +64,7 @@ mod tests {
       }
     }
 
-    conn.set_state(ConnectionState::Configuration);
+    conn.set_state(ConnectionState::Configuration).await;
 
     conn
       .write_configuration_packet(ServersideConfigurationPacket::ClientInformation(ServersideClientInformation {
@@ -121,7 +121,7 @@ mod tests {
       }
     }
 
-    conn.set_state(ConnectionState::Play);
+    conn.set_state(ConnectionState::Play).await;
 
     loop {
       if let Some(p) = conn.read_play_packet().await {
