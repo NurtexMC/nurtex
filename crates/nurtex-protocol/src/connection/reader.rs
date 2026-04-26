@@ -1,5 +1,6 @@
 use flate2::read::ZlibDecoder;
 use futures::StreamExt;
+use futures_util::future::FutureExt;
 use nurtex_codec::VarInt;
 use nurtex_encrypt::AesDecryptor;
 use std::fmt::Debug;
@@ -10,6 +11,7 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 
 use crate::ProtocolPacket;
 
+/// Функция парсинга фрейма
 fn parse_frame(buffer: &mut Cursor<Vec<u8>>) -> Option<Box<[u8]>> {
   let mut buffer_copy = Cursor::new(&buffer.get_ref()[buffer.position() as usize..]);
 
@@ -33,11 +35,13 @@ fn parse_frame(buffer: &mut Cursor<Vec<u8>>) -> Option<Box<[u8]>> {
   Some(data.into_boxed_slice())
 }
 
+/// Функция десериализации сетевого пакета
 pub fn deserialize_packet<P: ProtocolPacket + Debug>(stream: &mut Cursor<&[u8]>) -> Option<P> {
   let packet_id = i32::read_varint(stream)? as u32;
   P::read(packet_id, stream)
 }
 
+/// Функция декодировки с учётом порога сжатия
 pub fn compression_decoder(stream: &mut Cursor<&[u8]>, compression_threshold: u32) -> Option<Box<[u8]>> {
   let n = i32::read_varint(stream)? as u32;
 
@@ -62,6 +66,7 @@ pub fn compression_decoder(stream: &mut Cursor<&[u8]>, compression_threshold: u3
   Some(decoded_buf.into_boxed_slice())
 }
 
+/// Функция чтения сетевого пакета
 pub async fn read_packet<P: ProtocolPacket + Debug, R>(
   stream: &mut R,
   buffer: &mut Cursor<Vec<u8>>,
@@ -76,6 +81,25 @@ where
   Some(packet)
 }
 
+/// Функция чтения сетевого пакета (неблокирующая)
+pub fn try_read_packet<P: ProtocolPacket + Debug, R>(
+  stream: &mut R,
+  buffer: &mut Cursor<Vec<u8>>,
+  compression_threshold: Option<u32>,
+  cipher: &mut Option<AesDecryptor>,
+) -> Result<Option<P>, std::io::Error>
+where
+  R: AsyncRead + Unpin + Send + Sync,
+{
+  let Some(raw_packet) = try_read_raw_packet(stream, buffer, compression_threshold, cipher)? else {
+    return Ok(None);
+  };
+
+  let packet = deserialize_packet(&mut Cursor::new(&raw_packet));
+  Ok(packet)
+}
+
+/// Функция чтения сырого пакета
 pub async fn read_raw_packet<R>(stream: &mut R, buffer: &mut Cursor<Vec<u8>>, compression_threshold: Option<u32>, cipher: &mut Option<AesDecryptor>) -> Option<Box<[u8]>>
 where
   R: AsyncRead + Unpin + Send + Sync,
@@ -90,6 +114,30 @@ where
   }
 }
 
+/// Функция чтения сырого пакета (неблокирующая)
+pub fn try_read_raw_packet<R>(
+  stream: &mut R,
+  buffer: &mut Cursor<Vec<u8>>,
+  compression_threshold: Option<u32>,
+  cipher: &mut Option<AesDecryptor>,
+) -> Result<Option<Box<[u8]>>, std::io::Error>
+where
+  R: AsyncRead + Unpin + Send + Sync,
+{
+  loop {
+    if let Some(buf) = read_raw_packet_from_buffer::<R>(buffer, compression_threshold) {
+      return Ok(Some(buf));
+    };
+
+    let Some(bytes) = try_read_and_decrypt_frame(stream, cipher)? else {
+      return Ok(None);
+    };
+
+    buffer.get_mut().extend_from_slice(&bytes);
+  }
+}
+
+/// Функция чтения и расшифровки фрейма
 async fn read_and_decrypt_frame<R>(stream: &mut R, cipher: &mut Option<AesDecryptor>) -> Option<Box<[u8]>>
 where
   R: AsyncRead + Unpin + Send + Sync,
@@ -111,6 +159,32 @@ where
   Some(bytes)
 }
 
+/// Функция чтения и расшифровки фрейма (неблокирующая)
+fn try_read_and_decrypt_frame<R>(stream: &mut R, cipher: &mut Option<AesDecryptor>) -> Result<Option<Box<[u8]>>, std::io::Error>
+where
+  R: AsyncRead + Unpin + Send + Sync,
+{
+  let mut framed = FramedRead::new(stream, BytesCodec::new());
+
+  let Some(message) = framed.next().now_or_never() else {
+    return Ok(None);
+  };
+
+  let Some(message) = message else {
+    return Err(std::io::Error::new(std::io::ErrorKind::ConnectionAborted, "Connection closed"));
+  };
+
+  let bytes = message?.freeze();
+  let mut bytes = bytes.to_vec().into_boxed_slice();
+
+  if let Some(cipher) = cipher {
+    nurtex_encrypt::decrypt_packet(cipher, &mut bytes);
+  }
+
+  Ok(Some(bytes))
+}
+
+/// Функция чтения сырого пакета из буффера
 pub fn read_raw_packet_from_buffer<R>(buffer: &mut Cursor<Vec<u8>>, compression_threshold: Option<u32>) -> Option<Box<[u8]>>
 where
   R: AsyncRead + Unpin + Send + Sync,
