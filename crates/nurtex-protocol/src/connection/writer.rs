@@ -8,6 +8,7 @@ use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 use crate::ProtocolPacket;
 
+/// Функция записи сетевого пакета
 pub async fn write_packet<P, W>(packet: &P, stream: &mut W, compression_threshold: Option<u32>, cipher: &mut Option<AesEncryptor>) -> io::Result<()>
 where
   P: ProtocolPacket + Debug,
@@ -17,6 +18,7 @@ where
   write_raw_packet(&raw_packet, stream, compression_threshold, cipher).await
 }
 
+/// Функция сериализации пакета
 pub fn serialize_packet<P>(packet: &P) -> Option<Box<[u8]>>
 where
   P: ProtocolPacket + Debug,
@@ -32,6 +34,7 @@ where
   Some(buf.into_boxed_slice())
 }
 
+/// Функция записи сырого пакета
 pub async fn write_raw_packet<W>(raw_packet: &[u8], stream: &mut W, compression_threshold: Option<u32>, cipher: &mut Option<AesEncryptor>) -> io::Result<()>
 where
   W: AsyncWrite + Unpin + Send,
@@ -40,18 +43,24 @@ where
   stream.write_all(&network_packet).await
 }
 
+/// Функция кодировки байтов в сетевой пакет
 pub fn encode_to_network_packet(raw_packet: &[u8], compression_threshold: Option<u32>, cipher: &mut Option<AesEncryptor>) -> Vec<u8> {
   let mut raw_packet = raw_packet.to_vec();
+
   if let Some(threshold) = compression_threshold {
     raw_packet = compression_encoder(&raw_packet, threshold).unwrap();
   }
+
   raw_packet = frame_prepender(raw_packet).unwrap();
+
   if let Some(cipher) = cipher {
     nurtex_encrypt::encrypt_packet(cipher, &mut raw_packet);
   }
+
   raw_packet
 }
 
+/// Функция кодировки с учётом порога сжатия
 pub fn compression_encoder(data: &[u8], compression_threshold: u32) -> Option<Vec<u8>> {
   let n = data.len();
 
@@ -75,6 +84,7 @@ pub fn compression_encoder(data: &[u8], compression_threshold: u32) -> Option<Ve
   }
 }
 
+/// Функция подготовки фрейма
 fn frame_prepender(mut data: Vec<u8>) -> Option<Vec<u8>> {
   let mut buf = Vec::new();
 

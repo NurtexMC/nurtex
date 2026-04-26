@@ -9,6 +9,8 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::sync::{Mutex, RwLock};
 
 use crate::connection::address::NurtexAddr;
+use crate::connection::reader::{deserialize_packet, read_raw_packet, try_read_raw_packet};
+use crate::connection::writer::{serialize_packet, write_raw_packet};
 use crate::packets::{
   configuration::{ClientsideConfigurationPacket, ServersideConfigurationPacket},
   handshake::{ClientsideHandshakePacket, ServersideHandshakePacket},
@@ -16,8 +18,6 @@ use crate::packets::{
   play::{ClientsidePlayPacket, ServersidePlayPacket},
   status::{ClientsideStatusPacket, ServersideStatusPacket},
 };
-use crate::reader::{deserialize_packet, read_raw_packet};
-use crate::writer::{serialize_packet, write_raw_packet};
 
 /// Состояние подключения
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,6 +117,47 @@ impl ConnectionReader {
       ConnectionState::Login => deserialize_packet::<ClientsideLoginPacket>(&mut cursor).map(ClientsidePacket::Login),
       ConnectionState::Configuration => deserialize_packet::<ClientsideConfigurationPacket>(&mut cursor).map(ClientsidePacket::Configuration),
       ConnectionState::Play => deserialize_packet::<ClientsidePlayPacket>(&mut cursor).map(ClientsidePacket::Play),
+    }
+  }
+
+  /// Метод чтения пакета (неблокирующий)
+  pub fn try_read_packet(&mut self) -> Result<Option<ClientsidePacket>, std::io::Error> {
+    let compression_threshold = match self.compression_threshold.try_read() {
+      Ok(threshold) => *threshold,
+      Err(_) => return Ok(None),
+    };
+
+    let mut decryptor_guard = match self.decryptor.try_lock() {
+      Ok(guard) => guard,
+      Err(_) => return Ok(None),
+    };
+
+    let Some(raw_packet) = try_read_raw_packet(&mut self.read_stream, &mut self.buffer, compression_threshold, &mut *decryptor_guard)? else {
+      return Ok(None);
+    };
+
+    let mut cursor = Cursor::new(raw_packet.as_ref());
+    let state = match self.state.try_read() {
+      Ok(state) => *state,
+      Err(_) => return Ok(None),
+    };
+
+    let packet = match state {
+      ConnectionState::Handshake => deserialize_packet::<ClientsideHandshakePacket>(&mut cursor).map(ClientsidePacket::Handshake),
+      ConnectionState::Status => deserialize_packet::<ClientsideStatusPacket>(&mut cursor).map(ClientsidePacket::Status),
+      ConnectionState::Login => deserialize_packet::<ClientsideLoginPacket>(&mut cursor).map(ClientsidePacket::Login),
+      ConnectionState::Configuration => deserialize_packet::<ClientsideConfigurationPacket>(&mut cursor).map(ClientsidePacket::Configuration),
+      ConnectionState::Play => deserialize_packet::<ClientsidePlayPacket>(&mut cursor).map(ClientsidePacket::Play),
+    };
+
+    Ok(packet)
+  }
+
+  /// Метод проверки активности TCP соединения
+  pub fn is_connection_alive(&self) -> bool {
+    match self.read_stream.peer_addr() {
+      Ok(_) => true,
+      Err(_) => false,
     }
   }
 
@@ -271,6 +312,26 @@ impl NurtexConnection {
   pub async fn read_packet(&self) -> Option<ClientsidePacket> {
     let mut reader = self.reader.lock().await;
     reader.read_packet().await
+  }
+
+  /// Вспомогательный метод чтения пакета (неблокирующий)
+  pub fn try_read_packet(&self) -> Result<Option<ClientsidePacket>, std::io::Error> {
+    let mut reader = match self.reader.try_lock() {
+      Ok(reader) => reader,
+      Err(_) => return Ok(None),
+    };
+
+    reader.try_read_packet()
+  }
+
+  /// Метод проверки активности TCP соединения
+  pub fn is_connection_alive(&self) -> bool {
+    let reader = match self.reader.try_lock() {
+      Ok(reader) => reader,
+      Err(_) => return true,
+    };
+
+    reader.is_connection_alive()
   }
 
   /// Вспомогательный метод чтения `status` пакета
