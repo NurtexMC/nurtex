@@ -2,7 +2,7 @@ use nurtex_codec::Buffer;
 use nurtex_derive::Packet;
 use uuid::Uuid;
 
-use crate::types::{BlockPosition, ClientCommand, Experience, Face, GameEvent, InteractType, LastSeenMessage, LpVector3, PhysicsFlags, PlayerAction, PlayerCommand, RelativeHand, ResourcePackState, Rotation, TeleportFlags, TextComponent, Vector3};
+use crate::types::{BlockPosition, ClientCommand, Experience, Face, GameEvent, InteractType, LastSeenMessage, LpVector3, PhysicsFlags, PlayerAction, PlayerCommand, RelativeHand, ResourcePackState, Rotation, TeleportFlags, Vector3};
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct MultisideKeepAlive {
@@ -151,7 +151,10 @@ pub struct ClientsideRemoveEntities {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideDisconnect {
-  pub reason: TextComponent,
+  // Я не знаю почему, но TextComponent не подходит здесь под поле `reason`, 
+  // хотя в тех же пакетах в состоянии Configuration / Login это работает
+  // -----------------------------------------------------------------------
+  // pub reason: TextComponent,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
