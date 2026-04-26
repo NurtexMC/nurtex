@@ -533,7 +533,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex-codec"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "byteorder",
  "uuid",
@@ -541,7 +541,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex-derive"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -550,7 +550,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex-encrypt"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "aes",
  "cfb8",
@@ -562,7 +562,7 @@ dependencies = [
 
 [[package]]
 name = "nurtex-protocol"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "flate2",
  "futures",
