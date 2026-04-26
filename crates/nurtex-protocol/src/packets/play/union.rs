@@ -1,7 +1,19 @@
 use nurtex_derive::PacketUnion;
 
 use crate::packets::play::{
-  ClientsideAddResourcePack, ClientsideChunkCacheCenter, ClientsideChunkCacheRadius, ClientsideClearChat, ClientsideDamageEvent, ClientsideDisconnect, ClientsideEntityPositionSync, ClientsideExplosion, ClientsideGameEvent, ClientsideLogin, ClientsideMoveVehicle, ClientsideOpenContainer, ClientsidePing, ClientsidePingResponse, ClientsidePlayerChat, ClientsidePlayerCombatKill, ClientsidePlayerLookAt, ClientsidePlayerPosition, ClientsidePlayerRotation, ClientsideRemoveEntities, ClientsideRemoveEntityEffect, ClientsideRemoveResourcePack, ClientsideRotateHead, ClientsideSectionBlocksUpdate, ClientsideSetCamera, ClientsideSetEntityLink, ClientsideSetEntityVelocity, ClientsideSetExperience, ClientsideSetHealth, ClientsideSetPassengers, ClientsideSpawnEntity, ClientsideSystemChat, ClientsideTransfer, ClientsideUnloadChunk, ClientsideUpdateEntityPos, ClientsideUpdateEntityPosRot, ClientsideUpdateEntityRot, MultisideKeepAlive, ServersideAcceptTeleportation, ServersideChatCommand, ServersideChatMessage, ServersideClientCommand, ServersideInteract, ServersideMovePlayerPos, ServersideMovePlayerPosRot, ServersideMovePlayerRot, ServersideMovePlayerStatusOnly, ServersidePingRequest, ServersidePlayerAction, ServersidePlayerCommand, ServersidePong, ServersideResourcePackResponse, ServersideSetHeldItem, ServersideSwingArm, ServersideUseItem
+  ClientsideAddResourcePack, ClientsideBlockUpdate, ClientsideChunkBatchFinished, ClientsideChunkBatchStart, ClientsideChunkCacheCenter, 
+  ClientsideChunkCacheRadius, ClientsideClearChat, ClientsideCloseContainer, ClientsideContainerSetContent, ClientsideContainerSetData, 
+  ClientsideContainerSetSlot, ClientsideDamageEvent, ClientsideDisconnect, ClientsideEntityPositionSync, ClientsideExplosion, 
+  ClientsideGameEvent, ClientsideLoadChunkWithLight, ClientsideLightUpdate, ClientsideLogin, ClientsideMoveVehicle, ClientsideOpenContainer,
+  ClientsidePing, ClientsidePingResponse, ClientsidePlayerChat, ClientsidePlayerCombatKill, ClientsidePlayerLookAt, ClientsidePlayerPosition, 
+  ClientsidePlayerRotation, ClientsideRemoveEntities, ClientsideRemoveEntityEffect, ClientsideRemoveResourcePack, ClientsideRotateHead, 
+  ClientsideSectionBlocksUpdate, ClientsideSetCamera, ClientsideSetEntityLink, ClientsideSetEntityVelocity,
+  ClientsideSetExperience, ClientsideSetHealth, ClientsideSetPassengers, ClientsideSpawnEntity, ClientsideSystemChat, ClientsideTransfer, 
+  ClientsideUnloadChunk, ClientsideUpdateEntityPos, ClientsideUpdateEntityPosRot, ClientsideUpdateEntityRot, MultisideKeepAlive, 
+  ServersideAcceptTeleportation, ServersideChatCommand, ServersideChatMessage, ServersideClientCommand, ServersideContainerClick, 
+  ServersideContainerClose, ServersideEditBook, ServersideInteract, ServersideMovePlayerPos, ServersideMovePlayerPosRot, 
+  ServersideMovePlayerRot, ServersideMovePlayerStatusOnly, ServersidePingRequest, ServersidePlayerAction, ServersidePlayerCommand, 
+  ServersidePong, ServersideResourcePackResponse, ServersideSetHeldItem, ServersideSwingArm, ServersideUseItem
 };
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
@@ -82,6 +94,24 @@ pub enum ClientsidePlayPacket {
   GameEvent(ClientsideGameEvent),
   #[packet_id = 0x1F]
   ClearChat(ClientsideClearChat),
+  #[packet_id = 0x0C]
+  ChunkBatchStart(ClientsideChunkBatchStart),
+  #[packet_id = 0x0B]
+  ChunkBatchFinished(ClientsideChunkBatchFinished),
+  #[packet_id = 0x2C]
+  LoadChunkWithLight(ClientsideLoadChunkWithLight),
+  #[packet_id = 0x08]
+  BlockUpdate(ClientsideBlockUpdate),
+  #[packet_id = 0x12]
+  ContainerSetContent(ClientsideContainerSetContent),
+  #[packet_id = 0x14]
+  ContainerSetSlot(ClientsideContainerSetSlot),
+  #[packet_id = 0x2F]
+  LightUpdate(ClientsideLightUpdate),
+  #[packet_id = 0x11]
+  CloseContainer(ClientsideCloseContainer),
+  #[packet_id = 0x13]
+  ContainerSetData(ClientsideContainerSetData),
 }
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
@@ -122,4 +152,10 @@ pub enum ServersidePlayPacket {
   PlayerCommand(ServersidePlayerCommand),
   #[packet_id = 0x30]
   ResourcePackResponse(ServersideResourcePackResponse),
+  #[packet_id = 0x11]
+  ContainerClick(ServersideContainerClick),
+  #[packet_id = 0x12]
+  ContainerClose(ServersideContainerClose),
+  #[packet_id = 0x17]
+  EditBook(ServersideEditBook),
 }
