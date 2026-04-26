@@ -2,6 +2,9 @@
 
 A collection of lightweight Rust libraries for creating Minecraft bots. Async, optimized, ease of coding.
 
+> [!WARNING]
+> All crates are currently in **early** development. The API may change frequently, and may be unstable, have frequent errors,> and have limited functionality. Bugs or features should be reported to the GitHub **issues**.
+
 
 # Focusing
 
