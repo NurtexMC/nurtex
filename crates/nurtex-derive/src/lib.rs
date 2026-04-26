@@ -1,9 +1,11 @@
 use quote::quote;
 use syn::{Data, DeriveInput, parse_macro_input};
 
-mod utils;
+mod extract;
+mod generate;
 
-use utils::*;
+use extract::*;
+use generate::*;
 
 /// Макрос автоматической генерации `read` и `write` методов для пакета.
 ///
@@ -105,12 +107,12 @@ pub fn derive_packet_union(input: proc_macro::TokenStream) -> proc_macro::TokenS
     }
   });
 
-  let has_packet_ids = variants.iter().any(|v| utils::extract_packet_id(v).is_some());
+  let has_packet_ids = variants.iter().any(|v| extract::extract_packet_id(v).is_some());
 
   let packet_impl = if has_packet_ids {
     let id_arms = variants.iter().filter_map(|variant| {
       let variant_name = &variant.ident;
-      utils::extract_packet_id(variant).map(|id| {
+      extract::extract_packet_id(variant).map(|id| {
         quote! {
           Self::#variant_name(_) => #id,
         }
@@ -124,7 +126,7 @@ pub fn derive_packet_union(input: proc_macro::TokenStream) -> proc_macro::TokenS
         syn::Fields::Unnamed(fields) => {
           if fields.unnamed.len() == 1 {
             let field_type = &fields.unnamed[0].ty;
-            utils::extract_packet_id(variant).map(|id| {
+            extract::extract_packet_id(variant).map(|id| {
               quote! {
                 #id => Some(Self::#variant_name(<#field_type>::read(buf)?)),
               }
