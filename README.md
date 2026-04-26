@@ -27,7 +27,7 @@ All crates focus on:
 - [ ] Interaction with inventory
 - [ ] Interaction with entities
 - [x] Flexible settings (relative to the current position)
-- [ ] NBT passring
+- [ ] NBT parsing
 - [ ] Text component parsing (it's there now, but it doesn't work as it should)
 - [ ] Basic bypass of client validity checks (planned to be implemented soon)
 - [ ] Bypass primitive bot checks
