@@ -2,7 +2,7 @@ use nurtex_codec::Buffer;
 use nurtex_derive::Packet;
 use uuid::Uuid;
 
-use crate::types::{BlockPosition, ClientCommand, Experience, Face, GameEvent, InteractType, AdditionalMessageInfo, LpVector3, PhysicsFlags, PlayerAction, PlayerCommand, RelativeHand, ResourcePackState, Rotation, TeleportFlags, Vector3};
+use crate::types::{AdditionalMessageInfo, BlockPosition, ClientCommand, Experience, Face, GameEvent, InteractType, Item, LpVector3, PhysicsFlags, PlayerAction, PlayerCommand, RelativeHand, ResourcePackState, Rotation, TeleportFlags, TextComponent, Vector3};
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct MultisideKeepAlive {
@@ -175,7 +175,7 @@ pub struct ClientsidePlayerChat {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSystemChat {
-  pub message: String,
+  pub message: TextComponent,
   pub overlay: bool,
 }
 
@@ -328,6 +328,75 @@ pub struct ClientsideClearChat {
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideLoadChunkWithLight {
+  pub chunk_x: i32,
+  pub chunk_z: i32,
+  pub chunk_data: Vec<u8>,
+  pub light_data: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideBlockUpdate {
+  pub block_pos: BlockPosition,
+  #[packet(varint)]
+  pub block_state: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideContainerSetContent {
+  #[packet(varint)]
+  pub container_id: i32,
+  #[packet(varint)]
+  pub state_id: i32,
+  pub items: Vec<Item>,
+  pub carried_item: Item,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideContainerSetSlot {
+  #[packet(varint)]
+  pub container_id: i32,
+  #[packet(varint)]
+  pub state_id: i32,
+  pub slot: i16,
+  pub item: Item,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideChunkBatchStart;
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideChunkBatchFinished {
+  #[packet(varint)]
+  pub batch_size: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideLightUpdate {
+  #[packet(varint)]
+  pub chunk_x: i32,
+  #[packet(varint)]
+  pub chunk_z: i32,
+  pub light_data: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideCloseContainer {
+  #[packet(varint)]
+  pub container_id: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ClientsideContainerSetData {
+  #[packet(varint)]
+  pub container_id: i32,
+  #[packet(varint)]
+  pub property: i32,
+  #[packet(varint)]
+  pub value: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersidePong {
   pub id: i32,
 }
@@ -438,4 +507,30 @@ pub struct ServersidePlayerCommand {
 pub struct ServersideResourcePackResponse {
   pub uuid: Uuid,
   pub state: ResourcePackState,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ServersideContainerClick {
+  #[packet(varint)]
+  pub container_id: i32,
+  #[packet(varint)]
+  pub state_id: i32,
+  pub slot: i16,
+  pub button: i8,
+  #[packet(varint)]
+  pub mode: i32,
+  pub clicked_item: Item,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ServersideContainerClose {
+  #[packet(varint)]
+  pub container_id: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Packet)]
+pub struct ServersideEditBook {
+  pub slot: i32,
+  pub pages: Vec<String>,
+  pub title: Option<String>,
 }
