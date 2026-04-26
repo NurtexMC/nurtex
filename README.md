@@ -10,7 +10,7 @@ All crates focus on:
 - **Speed:** All crates do not contain heavy, long-term operations, even if they do, they are optimized.
 - **Lightweight:** All crates do not carry any extra dependencies or code.
 - **Asynchrony:** Almost all crates rely on an asynchronous code environment.
-- **Simplicity:** We try to make the logic of crates understandable for everyone, or at least organize simple use of crates.
+- **Simplicity:** We try to make the logic of crates understandable for everyone.
 
 
 # Tasks and Goals
