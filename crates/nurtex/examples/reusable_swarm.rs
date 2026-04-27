@@ -22,7 +22,7 @@ async fn main() -> std::io::Result<()> {
     for bot in &bots {
       swarm.add_arc_bot(Arc::clone(bot));
     }
-    
+
     // Запускаем ботов на сервер с фиксированной задержкой в 200мс
     swarm.launch("localhost", 25565, JoinDelay::fixed(200)).await;
 
@@ -40,7 +40,7 @@ async fn main() -> std::io::Result<()> {
 
     // Отключаем и очищаем рой
     swarm.shutdown().await?;
-    
+
     // Ждём перед следующим запуском (за исключением последнего запуска)
     if i != 2 {
       tokio::time::sleep(Duration::from_secs(2)).await;
