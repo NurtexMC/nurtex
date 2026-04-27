@@ -50,7 +50,10 @@ All crates focus on:
 
 All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex/examples)
 
+
 ## Create a bot
+
+This is one of the simplest examples of creating and connecting a bot.
 
 ```rust
 use std::time::Duration;
@@ -76,7 +79,10 @@ async fn main() -> std::io::Result<()> {
 }
 ```
 
+
 ## Create a swarm
+
+In this example, you can see a simple implementation of a bot swarm.
 
 ```rust
 use nurtex::bot::Bot;
@@ -99,5 +105,55 @@ async fn main() -> std::io::Result<()> {
   swarm.wait_handles().await;
 
   Ok(())
+}
+```
+
+
+## Swarm and speedometer
+
+Here you can see how to properly use the speedometer in a swarm and obtain its statistics / data.
+
+```rust
+use std::sync::Arc;
+
+use nurtex::bot::Bot;
+use nurtex::swarm::{JoinDelay, Speedometer, SpeedometerEvent, Swarm};
+
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+  // Создаём спидометр
+  let speedometer = Arc::new(Speedometer::new(100));
+
+  // Создаём рой со спидометром
+  let mut swarm = Swarm::create_with_speedometer(Arc::clone(&speedometer));
+
+  // Добавляем ботов в рой
+  for i in 0..50 {
+    // Добавляем бота со спидометром
+    swarm.add_bot(Bot::create_with_speedometer(format!("nurtex_bot_{}", i), Arc::clone(&speedometer)));
+  }
+
+  // Запускаем ботов на сервер с регрессивной линейной задержкой
+  swarm.quiet_launch("localhost", 25565, JoinDelay::regressive_linear(5000, 50));
+
+  // Подписываемся на события спидометра
+  let mut speedometer_rx = speedometer.subscribe();
+
+  // Создаём бесконечный цикл
+  loop {
+    if let Ok(event) = speedometer_rx.recv().await {
+      match event {
+        SpeedometerEvent::TimerTick { speed, boost } => {
+          // Обрабатываем тик таймера
+          println!("Фиксированная скорость: {} b/s (буст: {})", speed, boost);
+        }
+        SpeedometerEvent::UpdatePeakSpeed(speed) => {
+          // Обрабатываем пиковую скорость
+          println!("Новая пиковая скорость: {} b/s", speed);
+        }
+        _ => {}
+      }
+    }
+  }
 }
 ```
