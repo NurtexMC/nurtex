@@ -13,8 +13,12 @@ async fn main() -> std::io::Result<()> {
 
   // Добавляем ботов в рой
   for i in 0..50 {
-    // Добавляем бота со спидометром
-    swarm.add_bot(Bot::create_with_speedometer(format!("nurtex_bot_{}", i), Arc::clone(&speedometer)));
+    // Создаём бота со спидометром
+    let speedometer = Arc::clone(&speedometer);
+    let bot = Bot::create_with_speedometer(format!("nurtex_bot_{}", i), speedometer);
+
+    // Добавляем бота в рой
+    swarm.add_bot(bot);
   }
 
   // Запускаем ботов на сервер с регрессивной линейной задержкой
