@@ -5,7 +5,7 @@ use nurtex::swarm::{JoinDelay, Speedometer, SpeedometerEvent, Swarm};
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-  // Создаём спидометр 
+  // Создаём спидометр
   let speedometer = Arc::new(Speedometer::new(100));
 
   // Создаём рой со спидометром

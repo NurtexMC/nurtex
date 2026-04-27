@@ -8,9 +8,9 @@ async fn main() -> std::io::Result<()> {
     .set_connection_timeout(10000) // Задаём таймаут подключения
     .set_plugins(BotPlugins {
       auto_reconnect: AutoReconnectPlugin {
-        enabled: true, // Включаем плагин (по умолчанию выключен)
+        enabled: true,         // Включаем плагин (по умолчанию выключен)
         reconnect_delay: 2000, // Задержка переподключения в мс
-        max_attempts: -1, // Бесконечные попытки на переподключение
+        max_attempts: -1,      // Бесконечные попытки на переподключение
       },
       ..Default::default()
     });
