@@ -15,6 +15,14 @@ impl Rotation {
     Self { yaw, pitch }
   }
 
+  /// Метод создания `Rotation` из угла
+  pub fn from_angle(yaw_angle: i8, pitch_angle: i8) -> Self {
+    let yaw = (yaw_angle as f32) / 256.0 * 360.0;
+    let pitch = (pitch_angle as f32) / 256.0 * 360.0;
+
+    Self { yaw, pitch }
+  }
+
   /// Метод создания нулевой ротации
   pub fn zero() -> Self {
     Self { yaw: 0.0, pitch: 0.0 }

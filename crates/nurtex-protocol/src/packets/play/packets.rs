@@ -136,9 +136,9 @@ pub struct ClientsideSpawnEntity {
   pub entity_type: i32,
   pub position: Vector3,
   pub velocity: LpVector3,
-  pub angle_pitch: i8,
-  pub angle_yaw: i8,
-  pub angle_head_yaw: i8,
+  pub pitch_angle: i8,
+  pub yaw_angle: i8,
+  pub head_yaw_angle: i8,
   #[packet(varint)]
   pub data: i32,
 }
