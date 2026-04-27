@@ -16,6 +16,15 @@ impl Vector3 {
     Self { x, y, z }
   }
 
+  /// Метод создания `Vector3` из `LpVector3`
+  pub fn from_lp_vector3(lp_vector3: LpVector3) -> Self {
+    Self {
+      x: lp_vector3.x,
+      y: lp_vector3.y,
+      z: lp_vector3.z,
+    }
+  }
+
   /// Метод создания нулевого вектора
   pub fn zero() -> Self {
     Self { x: 0.0, y: 0.0, z: 0.0 }
@@ -28,6 +37,20 @@ impl Vector3 {
     let dz = self.z - other.z;
 
     Self { x: dx, y: dy, z: dz }
+  }
+
+  /// Метод прибавления дельты к текущим значениям
+  pub fn with_delta(&mut self, x: i16, y: i16, z: i16) {
+    self.x += x as f64;
+    self.y += y as f64;
+    self.z += z as f64;
+  }
+
+  /// Метод прибавления скорости к текущим значениям
+  pub fn with_velocity(&mut self, velocity: Vector3) {
+    self.x += velocity.x;
+    self.y += velocity.y;
+    self.z += velocity.z;
   }
 }
 
@@ -67,6 +90,11 @@ impl LpVector3 {
   /// Метод создания нулевого вектора
   pub fn zero() -> Self {
     Self { x: 0.0, y: 0.0, z: 0.0 }
+  }
+
+  /// Метод создания `Vector3` из `LpVector3`
+  pub fn to_vector3(&self) -> Vector3 {
+    Vector3 { x: self.x, y: self.y, z: self.z }
   }
 
   /// Метод упаковки значения
