@@ -222,6 +222,16 @@ impl Swarm {
       handle.abort();
     }
   }
+
+  /// Метод ожидания завершения всех хэндлов
+  pub async fn wait_handles(&mut self) {
+    for handle in &mut self.handles {
+      if !handle.is_finished() {
+        // Думаю, здесь логичнее игнорировать любые ошибки
+        let _ = handle.await;
+      }
+    }
+  }
 }
 
 #[cfg(test)]
@@ -269,6 +279,20 @@ mod tests {
     swarm.quiet_launch("localhost", 25565, JoinDelay::fixed(500));
     tokio::time::sleep(Duration::from_secs(5)).await;
     swarm.shutdown().await?;
+
+    Ok(())
+  }
+
+  #[tokio::test]
+  async fn test_wait_handles() -> io::Result<()> {
+    let mut swarm = Swarm::create_with_capacity(6);
+
+    for i in 0..6 {
+      swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
+    }
+
+    swarm.launch("localhost", 25565, JoinDelay::fixed(200)).await;
+    swarm.wait_handles().await;
 
     Ok(())
   }

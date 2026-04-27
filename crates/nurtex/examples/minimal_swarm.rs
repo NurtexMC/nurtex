@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use nurtex::bot::Bot;
 use nurtex::swarm::{JoinDelay, Swarm};
 
@@ -16,8 +14,8 @@ async fn main() -> std::io::Result<()> {
   // Запускаем ботов на сервер с фиксированной задержкой в 500мс
   swarm.launch("localhost", 25565, JoinDelay::fixed(500)).await;
 
-  // Ждём 10 секунд и завершаем процесс
-  tokio::time::sleep(Duration::from_secs(10)).await;
+  // Ждём завершения всех хэндлов ботов
+  swarm.wait_handles().await;
 
   Ok(())
 }
