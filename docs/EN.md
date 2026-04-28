@@ -15,13 +15,13 @@ Or type in the terminal:
 cargo add nurtex
 ```
 
+
 ## First program
 
 Once the `nurtex` library has been successfully installed and included, you can move on to writing the **first** program.
 
-Here we'll write a simple **Minecraft** bot whose task will be **simply connecting** to a server (in this example, we'll connect to a local server using version `1.21.11`).
+Let's write a simple **Minecraft** bot, whose task will be **simply connect** to a server (in this example, we will consider connecting to a local server using version `1.21.11`):
 
-**In the `main.rs` file:**
 ```rust
 use nurtex::Bot;
 
@@ -51,11 +51,11 @@ async fn main() -> std::io::Result<()> {
 }
 ```
 
+
 ## Sending messages to chat
 
-Let's write a bot whose task is to connect to the server and send a specific message to chat 5 times.
+Now let's write a bot that will connect to the server and send a specific message to the chat 5 times:
 
-**In the `main.rs` file:**
 ```rust
 use std::time::Duration;
 
@@ -91,13 +91,13 @@ async fn main() -> std::io::Result<()> {
 }
 ```
 
+
 ## Creating a swarm
 
 The `nurtex` library allows you to create a swarm (army, group - it doesn't matter) of bots, allowing you to effectively work with several (2 or more) bots simultaneously. One of the features of a swarm is shared storage of world data: instead of using unique storage for each bot, a swarm consolidates all data in one place, thereby avoiding situations with insane RAM consumption.
 
-Here we'll write a minimal program using a swarm. Its task will be to launch several bots on the server at once and simply wait for them to close.
+Let's write a minimal program using swarm. Its task will be to launch several bots simultaneously on the server and simply wait for them to close:
 
-**In the `main.rs` file:**
 ```rust
 use nurtex::{Bot, JoinDelay, Swarm};
 
@@ -120,6 +120,12 @@ async fn main() -> std::io::Result<()> {
   Ok(())
 }
 ```
+
+
+## Current examples
+
+All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex/examples)
+
 
 # Features
 
@@ -162,6 +168,7 @@ You can test the plugin's functionality by typing the following command in the c
 /kick nurtex_bot test
 ```
 
+
 ## Swarm join delay
 
 I decided not to stop at a simple static join delay (`JoinDelay`) and made it as flexible as possible.
@@ -186,7 +193,7 @@ async fn main() -> std::io::Result<()> {
 
   // Add 6 bots to the swarm
   for i in 0..6 {
-  swarm.add_bot(Bot::create(format!("nurtex_bot_{}", i)));
+    swarm.add_bot(Bot::create(format!("nurtex_bot_{}", i)));
   }
 
   // Launch a swarm with progressive linear delay
@@ -214,6 +221,7 @@ nurtex_bot_4 connected
 Waiting for 2500ms...
 nurtex_bot_5 connected
 ```
+
 
 ## Swarm with a speedometer
 
@@ -287,4 +295,138 @@ New peak speed: 4 b/s
 Fixed speed: 4 b/s (boost: 1)
 New peak speed: 5 b/s
 Fixed speed: 5 b/s (boost: 1)
+```
+
+# Additional
+
+## Reading and writing packets
+
+The `nurtex` library allows you to read (`ClientsidePacket`) and write (`ServersidePlayPacket`) packets.
+
+Let's create a bot that, with each `PlayerChat` packet received, will check for the word `swing` in the message and send a `SwingArm` packet to the server. This way, we can immediately see how reading and writing packets works in one example:
+
+```rust
+use nurtex::bot::Bot;
+use nurtex_protocol::connection::ClientsidePacket;
+use nurtex_protocol::packets::play::{ClientsidePlayPacket, ServersidePlayPacket, ServersideSwingArm};
+use nurtex_protocol::types::RelativeHand;
+
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+  // Create a bot
+  let mut bot = Bot::create("nurtex_bot");
+
+  // Connect the bot to the server
+  bot.connect("localhost", 25565);
+
+  // Get and subscribe to the packet reader
+  let mut packet_rx = bot.get_reader().subscribe();
+
+  // Start an infinite loop
+  loop {
+    // Read packets only in the Play state
+    if let Ok(ClientsidePacket::Play(packet)) = packet_rx.recv().await {
+      match packet {
+        ClientsidePlayPacket::PlayerChat(p) => {
+          // Check that the message contains the word `swing`
+          if p.message.contains("swing") {
+            // Send the `SwingArm` packet
+            bot.send_packet(ServersidePlayPacket::SwingArm(ServersideSwingArm {
+              hand: RelativeHand::MainHand,
+            }));
+
+            // You can also send packets this way:
+            // let _ = bot.get_writer().send(ServersidePlayPacket::SwingArm(ServersideSwingArm {
+            // hand: RelativeHand::MainHand,
+            // }));
+          }
+        }
+        _ => {}
+      }
+    }
+  }
+}
+```
+
+## Multi-swarm
+
+Here we'll look at what a **multi-swarm** is, how to create one, what it might be used for, and what its nuances are.
+
+A **multi-swarm** is not just an object, but a small system containing several swarms of bots.
+
+What a **multi-swarm** can be useful for:
+
+- Simultaneous launch of swarms on multiple servers.
+- Distributing bots into groups, where each group has its own world.
+- Other more complex applications.
+
+What are the possible nuances of a **multi-swarm**:
+
+- Higher RAM consumption (since all swarms have unique storage).
+- More complex control over bots.
+
+Now let's create our multi-swarm:
+
+```rust
+use std::sync::Arc;
+use std::time::Duration;
+
+use nurtex::{JoinDelay, Swarm};
+use nurtex::bot::{Bot, BotChatExt};
+use tokio::sync::RwLock;
+
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+  // Create a list of swarms
+  let mut swarms = Vec::new();
+
+  // Create 3 swarms of 6 bots each
+  for swarm_i in 0..3 {
+    // Create a swarm
+    let mut swarm = Swarm::create();
+
+    // Add bots to the swarm
+    for bot_i in 0..6 {
+      swarm.add_bot(Bot::create(format!("nurtex_{}_{}", swarm_i, bot_i)));
+    }
+
+    // Add an Arc + RwLock swarm to the list
+    swarms.push(Arc::new(RwLock::new(swarm)));
+  }
+
+  // Loop through all existing swarms
+  for swarm in &swarms {
+    // Clone a swarm for a specific task
+    let swarm_clone = Arc::clone(&swarm);
+
+    // Spawn a separate task
+    tokio::spawn(async move {
+      // You can specify different servers here, but for this example we'll only use the local one
+      swarm_clone.write().await.launch("localhost", 25565, JoinDelay::fixed(250)).await;
+
+      // Wait 4 seconds
+      tokio::time::sleep(Duration::from_secs(4)).await;
+
+      // Send a chat message from all bots in the current swarm
+      swarm_clone.read().await.for_each_parallel(async |bot| {
+        // Ignore possible errors
+        let _ = bot.chat_message(format!("Hello, I'm {}!", bot.username())).await;
+      });
+    });
+  }
+
+  // Wait 20 seconds
+  tokio::time::sleep(Duration::from_secs(20)).await;
+
+  // Loop through all swarms again and shut them down
+  for swarm in swarms {
+    // Spawn a separate task
+    tokio::spawn(async move {
+      // Ignore possible errors
+      let _ = swarm.write().await.shutdown().await;
+    });
+  }
+
+  Ok(())
+}
 ```
