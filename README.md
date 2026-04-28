@@ -48,8 +48,7 @@ All crates focus on:
 
 # Documentation
 
-**Русская:** [читать](https://github.com/NurtexMC/nurtex/tree/main/docs/RU.md)
-**English:** [read](https://github.com/NurtexMC/nurtex/tree/main/docs/EN.md)
+[**Русская**](https://github.com/NurtexMC/nurtex/tree/main/docs/RU.md) | [**English**](https://github.com/NurtexMC/nurtex/tree/main/docs/EN.md)
 
 
 # Examples
