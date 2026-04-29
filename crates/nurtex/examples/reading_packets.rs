@@ -3,7 +3,7 @@ use nurtex_protocol::connection::ClientsidePacket;
 use nurtex_protocol::packets::play::ClientsidePlayPacket;
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() {
   // Создаём бота
   let mut bot = Bot::create("nurtex_bot");
 

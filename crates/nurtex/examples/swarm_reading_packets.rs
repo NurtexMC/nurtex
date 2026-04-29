@@ -6,7 +6,7 @@ use nurtex_protocol::packets::play::ClientsidePlayPacket;
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
   // Создаём рой и список читателей пакетов
-  let mut swarm = Swarm::create();
+  let mut swarm = Swarm::create().bind("localhost", 25565);
   let mut packet_readers = Vec::new();
 
   // Инициализируем ботов и читателей пакетов
@@ -17,7 +17,7 @@ async fn main() -> std::io::Result<()> {
   }
 
   // Мгновенно запускаем ботов на сервер (без задержки)
-  swarm.instant_launch("localhost", 25565);
+  swarm.instant_launch();
 
   // Проходимся по всем читателям
   for (mut packet_rx, username) in packet_readers {
