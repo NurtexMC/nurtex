@@ -135,7 +135,7 @@ mod tests {
   async fn test_instant() -> io::Result<()> {
     let speedometer = Arc::new(Speedometer::new(100));
 
-    let mut swarm = Swarm::create_with_speedometer(Arc::clone(&speedometer));
+    let mut swarm = Swarm::create_with_speedometer(Arc::clone(&speedometer)).bind("localhost", 25565);
 
     for i in 0..300 {
       swarm.add_bot(Bot::create_with_speedometer(format!("bot_{}", i), Arc::clone(&speedometer)));
@@ -162,7 +162,7 @@ mod tests {
       }
     });
 
-    swarm.instant_launch("localhost", 25565);
+    swarm.instant_launch();
 
     tokio::time::sleep(Duration::from_secs(20)).await;
 
@@ -175,7 +175,9 @@ mod tests {
   async fn test_normal() -> io::Result<()> {
     let speedometer = Arc::new(Speedometer::new(100));
 
-    let mut swarm = Swarm::create_with_speedometer(Arc::clone(&speedometer));
+    let mut swarm = Swarm::create_with_speedometer(Arc::clone(&speedometer))
+      .set_join_delay(JoinDelay::fixed(100))
+      .bind("localhost", 25565);
 
     for i in 0..100 {
       swarm.add_bot(Bot::create_with_speedometer(format!("bot_{}", i), Arc::clone(&speedometer)));
@@ -199,7 +201,7 @@ mod tests {
       }
     });
 
-    swarm.launch("localhost", 25565, JoinDelay::fixed(100)).await;
+    swarm.launch().await;
 
     tokio::time::sleep(Duration::from_secs(20)).await;
 

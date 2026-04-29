@@ -70,26 +70,30 @@ mod tests {
 
   #[tokio::test]
   async fn test_fixed_delay() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(10);
+    let mut swarm = Swarm::create_with_capacity(10).set_join_delay(JoinDelay::fixed(500)).bind("localhost", 25565);
+
     for i in 0..10 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
     }
 
-    swarm.launch("localhost", 25565, JoinDelay::fixed(500)).await;
+    swarm.launch().await;
     tokio::time::sleep(Duration::from_secs(2)).await;
     swarm.shutdown().await?;
+
     Ok(())
   }
 
   #[tokio::test]
   async fn test_progressive_linear_delay() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(10);
+    let mut swarm = Swarm::create_with_capacity(10)
+      .set_join_delay(JoinDelay::progressive_linear(500, 5000))
+      .bind("localhost", 25565);
 
     for i in 0..10 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
     }
 
-    swarm.launch("localhost", 25565, JoinDelay::progressive_linear(500, 5000)).await;
+    swarm.launch().await;
     tokio::time::sleep(Duration::from_secs(2)).await;
     swarm.shutdown().await?;
 
@@ -98,13 +102,15 @@ mod tests {
 
   #[tokio::test]
   async fn test_regressive_linear_delay() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(10);
+    let mut swarm = Swarm::create_with_capacity(10)
+      .set_join_delay(JoinDelay::regressive_linear(5000, 500))
+      .bind("localhost", 25565);
 
     for i in 0..10 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
     }
 
-    swarm.launch("localhost", 25565, JoinDelay::regressive_linear(5000, 500)).await;
+    swarm.launch().await;
     tokio::time::sleep(Duration::from_secs(2)).await;
     swarm.shutdown().await?;
 
@@ -113,13 +119,13 @@ mod tests {
 
   #[tokio::test]
   async fn test_random_delay() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(10);
+    let mut swarm = Swarm::create_with_capacity(10).set_join_delay(JoinDelay::random(100, 3000)).bind("localhost", 25565);
 
     for i in 0..10 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
     }
 
-    swarm.launch("localhost", 25565, JoinDelay::random(100, 3000)).await;
+    swarm.launch().await;
     tokio::time::sleep(Duration::from_secs(2)).await;
     swarm.shutdown().await?;
 
@@ -128,16 +134,17 @@ mod tests {
 
   #[tokio::test]
   async fn test_custom_delay() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(10);
+    let join_delay_fn = |current, total| (500 + total) * current;
+
+    let mut swarm = Swarm::create_with_capacity(10)
+      .set_join_delay(JoinDelay::custom(Box::new(join_delay_fn)))
+      .bind("localhost", 25565);
 
     for i in 0..10 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
     }
 
-    let join_delay_fn = |current, total| (500 + total) * current;
-
-    swarm.launch("localhost", 25565, JoinDelay::custom(Box::new(join_delay_fn))).await;
-
+    swarm.launch().await;
     tokio::time::sleep(Duration::from_secs(2)).await;
     swarm.shutdown().await?;
 
@@ -146,13 +153,15 @@ mod tests {
 
   #[tokio::test]
   async fn test_intermediate_delay() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(10);
+    let mut swarm = Swarm::create_with_capacity(10)
+      .set_join_delay(JoinDelay::intermediate(2, 100, 2000))
+      .bind("localhost", 25565);
 
     for i in 0..10 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
     }
 
-    swarm.launch("localhost", 25565, JoinDelay::intermediate(2, 100, 2000)).await;
+    swarm.launch().await;
     tokio::time::sleep(Duration::from_secs(3)).await;
     swarm.shutdown().await?;
 

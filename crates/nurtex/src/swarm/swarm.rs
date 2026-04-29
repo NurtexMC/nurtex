@@ -7,12 +7,18 @@ use tokio::task::JoinHandle;
 
 use crate::bot::Bot;
 use crate::storage::Storage;
-use crate::swarm::{JoinDelay, Speedometer};
+use crate::swarm::{JoinDelay, Speedometer, TargetServer};
 
 /// Рой ботов
 pub struct Swarm {
   /// Список всех ботов
   pub bots: Vec<Arc<Bot>>,
+
+  /// Данные целевого сервера
+  target_server: Arc<RwLock<TargetServer>>,
+
+  /// Интервал между подключениями ботов
+  join_delay: Arc<JoinDelay>,
 
   /// Список всех хэндлов
   handles: Vec<JoinHandle<core::result::Result<(), std::io::Error>>>,
@@ -29,6 +35,8 @@ impl Swarm {
   pub fn create() -> Self {
     Self {
       bots: Vec::new(),
+      target_server: Arc::new(RwLock::new(TargetServer::default())),
+      join_delay: Arc::new(JoinDelay::fixed(1000)),
       handles: Vec::new(),
       speedometer: None,
       shared_storage: Arc::new(RwLock::new(Storage::null())),
@@ -39,6 +47,8 @@ impl Swarm {
   pub fn create_with_capacity(capacity: usize) -> Self {
     Self {
       bots: Vec::with_capacity(capacity),
+      target_server: Arc::new(RwLock::new(TargetServer::default())),
+      join_delay: Arc::new(JoinDelay::fixed(1000)),
       handles: Vec::with_capacity(capacity),
       speedometer: None,
       shared_storage: Arc::new(RwLock::new(Storage::null())),
@@ -49,6 +59,8 @@ impl Swarm {
   pub fn create_with_speedometer(speedometer: Arc<Speedometer>) -> Self {
     Self {
       bots: Vec::new(),
+      target_server: Arc::new(RwLock::new(TargetServer::default())),
+      join_delay: Arc::new(JoinDelay::fixed(1000)),
       handles: Vec::new(),
       speedometer: Some(speedometer),
       shared_storage: Arc::new(RwLock::new(Storage::null())),
@@ -65,6 +77,32 @@ impl Swarm {
   pub fn set_shared_storage(mut self, storage: Arc<RwLock<Storage>>) -> Self {
     self.shared_storage = storage;
     self
+  }
+
+  /// Метод установки задержки подключения
+  pub fn set_join_delay(mut self, join_delay: JoinDelay) -> Self {
+    self.join_delay = Arc::new(join_delay);
+    self
+  }
+
+  /// Метод привязки роя к адерсу целевого сервера
+  pub fn bind(self, server_host: impl Into<String>, server_port: u16) -> Self {
+    match self.target_server.try_write() {
+      Ok(mut guard) => {
+        guard.host = server_host.into();
+        guard.port = server_port;
+      }
+      Err(_) => {}
+    };
+
+    self
+  }
+
+  /// Метод перепривязки роя к адерсу целевого сервера
+  pub async fn rebind(&self, server_host: impl Into<String>, server_port: u16) {
+    let mut guard = self.target_server.write().await;
+    guard.host = server_host.into();
+    guard.port = server_port;
   }
 
   /// Метод получения спидометра
@@ -121,9 +159,24 @@ impl Swarm {
     }
   }
 
+  /// Метод добавления бота в рой (возвращает `Self`)
+  pub fn with_bot(mut self, bot: Bot) -> Self {
+    self.bots.push(Arc::new(bot.set_storage(Arc::clone(&self.shared_storage))));
+    self
+  }
+
+  /// Метод добавления нескольких ботов в рой (возвращает `Self`)
+  pub fn with_bots(mut self, bots: Vec<Bot>) -> Self {
+    for bot in bots {
+      self.bots.push(Arc::new(bot.set_storage(Arc::clone(&self.shared_storage))));
+    }
+
+    self
+  }
+
   /// Метод проверки уникальности юзернейма.
   /// Он сверяет данный юзернейм со всеми юзернеймами уже ранее добавленных ботов в рой
-  pub fn username_is_unique(&mut self, username: &str) -> bool {
+  pub fn username_is_unique(&self, username: &str) -> bool {
     for bot in &self.bots {
       if username == bot.username() {
         return false;
@@ -133,16 +186,19 @@ impl Swarm {
     true
   }
 
-  /// Метод обычного запуска роя
-  pub async fn launch(&mut self, server_host: impl Into<String>, server_port: u16, join_delay: JoinDelay) {
-    let host = server_host.into();
+  /// Метод запуска роя
+  pub async fn launch(&mut self) {
     let total_bots = self.bots.len();
+    let (host, port) = {
+      let guard = self.target_server.read().await;
+      (guard.host.clone(), guard.port)
+    };
 
     for (index, bot) in self.bots.iter().enumerate() {
-      let handle = bot.connect_with_handle(&host, server_port);
+      let handle = bot.connect_with_handle(&host, port);
       self.handles.push(handle);
 
-      let delay = join_delay.activate(index, total_bots);
+      let delay = self.join_delay.activate(index, total_bots);
 
       if index < total_bots - 1 {
         tokio::time::sleep(Duration::from_millis(delay)).await;
@@ -150,12 +206,21 @@ impl Swarm {
     }
   }
 
+  /// Метод запуска роя и ожидания хэндлов
+  pub async fn launch_and_wait(&mut self) {
+    self.launch().await;
+    self.wait_handles().await;
+  }
+
   /// Метод мгновенного запуска роя (без задержки)
-  pub fn instant_launch(&mut self, server_host: impl Into<String>, server_port: u16) {
-    let host = server_host.into();
+  pub fn instant_launch(&mut self) {
+    let (host, port) = match self.target_server.try_read() {
+      Ok(g) => (g.host.clone(), g.port),
+      Err(_) => ("localhost".to_string(), 25565),
+    };
 
     for bot in &self.bots {
-      let handle = bot.connect_with_handle(&host, server_port);
+      let handle = bot.connect_with_handle(&host, port);
       self.handles.push(handle);
     }
   }
@@ -164,26 +229,46 @@ impl Swarm {
   /// Важно понимать что он **НЕ** добавляет хэндлы подключений ботов,
   /// соответственно любое взаимодействие с ними будет невозможным,
   /// так же **могут быть проблемы** при остановке роя (редко и
-  /// только если выполняются долгие блокирующие операции с подключениями)
-  pub fn quiet_launch(&mut self, server_host: impl Into<String>, server_port: u16, join_delay: JoinDelay) {
-    let host = server_host.into();
+  /// только если выполняются долгие блокирующие операции с подключениями).
+  /// В результате вызова данного метода вернётся `JoinHandle`, при
+  /// помощи него можно контролировать хэндлы всех запущенных ботов
+  pub fn quiet_launch(&self) -> JoinHandle<()> {
     let total_bots = self.bots.len();
+    let join_delay = Arc::clone(&self.join_delay);
 
-    let mut bots = Vec::with_capacity(self.bots.len());
-    for bot in &self.bots {
-      bots.push(Arc::clone(bot));
-    }
+    let bots = {
+      let mut vec = Vec::new();
+
+      for bot in &self.bots {
+        vec.push(Arc::clone(bot));
+      }
+
+      vec
+    };
+
+    let (host, port) = match self.target_server.try_read() {
+      Ok(g) => (g.host.clone(), g.port),
+      Err(_) => ("localhost".to_string(), 25565),
+    };
 
     tokio::spawn(async move {
+      let mut handles = Vec::with_capacity(total_bots);
+
       for (index, bot) in bots.iter().enumerate() {
-        bot.connect_with_handle(&host, server_port);
+        let handle = bot.connect_with_handle(&host, port);
+        handles.push(handle);
+
+        let delay = join_delay.activate(index, total_bots);
 
         if index < total_bots - 1 {
-          let delay = join_delay.activate(index, total_bots);
           tokio::time::sleep(Duration::from_millis(delay)).await;
         }
       }
-    });
+
+      for handle in handles {
+        let _ = handle.await;
+      }
+    })
   }
 
   /// Метод получения количества ботов в рое
@@ -266,7 +351,7 @@ mod tests {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
     }
 
-    swarm.instant_launch("localhost", 25565);
+    swarm.instant_launch();
 
     tokio::time::sleep(Duration::from_secs(3)).await;
 
@@ -286,28 +371,31 @@ mod tests {
 
   #[tokio::test]
   async fn test_quiet() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(10);
+    let mut bots = Vec::new();
 
     for i in 0..10 {
-      swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
+      bots.push(Bot::create(format!("nurtex_{}", i)));
     }
 
-    swarm.quiet_launch("localhost", 25565, JoinDelay::fixed(500));
-    tokio::time::sleep(Duration::from_secs(5)).await;
-    swarm.shutdown().await?;
+    Swarm::create_with_capacity(10)
+      .with_bots(bots)
+      .set_join_delay(JoinDelay::fixed(200))
+      .bind("localhost", 25565)
+      .quiet_launch();
 
     Ok(())
   }
 
   #[tokio::test]
   async fn test_wait_handles() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(6);
+    let mut swarm = Swarm::create_with_capacity(6).set_join_delay(JoinDelay::fixed(200)).bind("localhost", 25565);
 
     for i in 0..6 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
     }
 
-    swarm.launch("localhost", 25565, JoinDelay::fixed(200)).await;
+    swarm.launch().await;
+
     swarm.wait_handles().await;
 
     Ok(())
@@ -315,13 +403,13 @@ mod tests {
 
   #[tokio::test]
   async fn test_shared_storage() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(6);
+    let mut swarm = Swarm::create_with_capacity(6).set_join_delay(JoinDelay::fixed(200)).bind("localhost", 25565);
 
     for i in 0..6 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
     }
 
-    swarm.launch("localhost", 25565, JoinDelay::fixed(200)).await;
+    swarm.launch().await;
 
     for _ in 0..5 {
       let storage = swarm.get_shared_storage();

@@ -20,6 +20,7 @@ All crates focus on:
 
 - [x] Bot architecture
 - [x] Swarm architecture
+- [x] Cluster architecture
 - [x] Connecting to servers
 - [x] Encryption
 - [x] Login processing
@@ -29,12 +30,14 @@ All crates focus on:
 - [ ] Implementation of physics
 - [ ] Interaction with inventory
 - [ ] Interaction with entities
+- [ ] Storing world data (a small part implemented)
 - [x] Flexible settings (relative to the current position)
 - [ ] NBT parsing
 - [ ] Text component parsing (it's there now, but it doesn't work as it should)
 - [ ] Basic bypass of client validity checks (planned to be implemented soon)
 - [ ] Bypass primitive bot checks
 - [ ] Bypass complex bot checks (complete imitation of a real player)
+- [ ] Bypass captchas
 
 
 # Crate map

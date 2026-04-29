@@ -6,7 +6,7 @@ use nurtex::swarm::{JoinDelay, Swarm};
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
   // Создаём рой
-  let mut swarm = Swarm::create();
+  let mut swarm = Swarm::create().set_join_delay(JoinDelay::fixed(200)).bind("localhost", 25565);
 
   // Создаём цикл на 3 повторения
   for i in 0..3 {
@@ -16,8 +16,8 @@ async fn main() -> std::io::Result<()> {
       swarm.add_bot(Bot::create(format!("nurtex_bot_{}", i)));
     }
 
-    // Запускаем ботов на сервер с фиксированной задержкой в 200мс
-    swarm.launch("localhost", 25565, JoinDelay::fixed(200)).await;
+    // Запускаем рой на сервер
+    swarm.launch().await;
 
     // Ждём немножко
     tokio::time::sleep(Duration::from_secs(3)).await;

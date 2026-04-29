@@ -4,12 +4,14 @@ use nurtex::bot::Bot;
 use nurtex::swarm::{JoinDelay, Speedometer, SpeedometerEvent, Swarm};
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() {
   // Создаём спидометр
   let speedometer = Arc::new(Speedometer::new(100));
 
   // Создаём рой со спидометром
-  let mut swarm = Swarm::create_with_speedometer(Arc::clone(&speedometer));
+  let mut swarm = Swarm::create_with_speedometer(Arc::clone(&speedometer))
+    .set_join_delay(JoinDelay::regressive_linear(5000, 50))
+    .bind("localhost", 25565);
 
   // Добавляем ботов в рой
   for i in 0..50 {
@@ -21,8 +23,8 @@ async fn main() -> std::io::Result<()> {
     swarm.add_bot(bot);
   }
 
-  // Запускаем ботов на сервер с регрессивной линейной задержкой
-  swarm.quiet_launch("localhost", 25565, JoinDelay::regressive_linear(5000, 50));
+  // Запускаем рой на сервер
+  swarm.quiet_launch();
 
   // Подписываемся на события спидометра
   let mut speedometer_rx = speedometer.subscribe();
