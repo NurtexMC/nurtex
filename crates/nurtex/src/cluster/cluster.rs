@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tokio::task::JoinHandle;
 
-use crate::Swarm;
+use crate::{Bot, Swarm};
 
 /// Кластер роев из ботов
 pub struct Cluster {
@@ -100,22 +100,22 @@ impl Cluster {
     }
   }
 
-  /// Последовательный for-each
-  pub async fn for_each_consistent<F, Fut>(&self, f: F)
+  /// Последовательный `for-each` по всем роям
+  pub async fn for_each_consistent<F, O>(&self, f: F)
   where
-    F: Fn(Arc<Swarm>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = ()> + Send + 'static,
+    F: Fn(Arc<Swarm>) -> O + Send + Sync + 'static,
+    O: std::future::Future<Output = ()> + Send + 'static,
   {
     for swarm in &self.swarms {
       f(Arc::clone(swarm)).await;
     }
   }
 
-  /// Параллельный for-each
-  pub fn for_each_parallel<F, Fut>(&self, f: F)
+  /// Параллельный `for-each` по всем роям
+  pub fn for_each_parallel<F, O>(&self, f: F)
   where
-    F: Fn(Arc<Swarm>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = ()> + Send + 'static,
+    F: Fn(Arc<Swarm>) -> O + Send + Sync + 'static,
+    O: std::future::Future<Output = ()> + Send + 'static,
   {
     let f = Arc::new(f);
 
@@ -124,6 +124,37 @@ impl Cluster {
       let swarm_clone = Arc::clone(swarm);
 
       tokio::spawn(f_clone(swarm_clone));
+    }
+  }
+
+  /// Последовательный `for-each` по всем ботам
+  pub async fn for_each_bots_consistent<F, O>(&self, f: F)
+  where
+    F: Fn(Arc<Bot>) -> O + Send + Sync + 'static,
+    O: std::future::Future<Output = ()> + Send + 'static,
+  {
+    let f = Arc::new(f);
+
+    for swarm in &self.swarms {
+      for bot in &swarm.bots {
+        f(Arc::clone(bot)).await;
+      }
+    }
+  }
+
+  /// Параллельный `for-each` по всем ботам
+  pub fn for_each_bots_parallel<F, O>(&self, f: F)
+  where
+    F: Fn(Arc<Bot>) -> O + Send + Sync + 'static,
+    O: std::future::Future<Output = ()> + Send + 'static,
+  {
+    let f = Arc::new(f);
+
+    for swarm in &self.swarms {
+      for bot in &swarm.bots {
+        let bot_clone = Arc::clone(bot);
+        tokio::spawn(f(bot_clone));
+      }
     }
   }
 
@@ -157,7 +188,7 @@ impl Cluster {
 mod tests {
   use std::time::Duration;
 
-  use crate::{Bot, Cluster, JoinDelay, Swarm};
+  use crate::{Bot, Cluster, JoinDelay, Swarm, bot::BotChatExt};
 
   #[tokio::test]
   async fn test_minimal_cluster() -> std::io::Result<()> {
@@ -176,6 +207,40 @@ mod tests {
     cluster.launch();
 
     tokio::time::sleep(Duration::from_secs(5)).await;
+
+    cluster.wait_finish().await
+  }
+
+  #[tokio::test]
+  async fn test_for_each_bots() -> std::io::Result<()> {
+    let mut cluster = Cluster::create();
+
+    for si in 0..3 {
+      let mut swarm = Swarm::create().set_join_delay(JoinDelay::fixed(2000)).bind("localhost", 25565);
+
+      for bi in 0..2 {
+        swarm.add_bot(Bot::create(format!("nurtex_{}_{}", si, bi)));
+      }
+
+      cluster.add_swarm(swarm);
+    }
+
+    cluster.launch();
+
+    tokio::time::sleep(Duration::from_secs(6)).await;
+
+    cluster.for_each_bots_parallel(async |bot| {
+      let _ = bot.chat_message("Параллельный for-each").await;
+    });
+
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    cluster
+      .for_each_bots_consistent(async |bot| {
+        let _ = bot.chat_message("Последовательный for-each").await;
+        tokio::time::sleep(Duration::from_millis(250)).await;
+      })
+      .await;
 
     cluster.wait_finish().await
   }
