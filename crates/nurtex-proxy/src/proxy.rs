@@ -77,6 +77,26 @@ impl Proxy {
     self
   }
 
+  /// Метод попытки создания соединения с прокси
+  pub async fn is_available(&self) -> bool {
+    match timeout(Duration::from_millis(self.timeout), TcpStream::connect(&self.proxy_address)).await {
+      Ok(result) => match result {
+        Ok(_) => return true,
+        Err(_) => return false,
+      },
+      Err(_) => return false,
+    }
+  }
+
+  /// Метод получения IP прокси
+  pub fn get_ip(&self) -> Option<String> {
+    if let Some(ip) = self.proxy_address.split(":").collect::<Vec<&str>>().get(0) {
+      Some(ip.to_string())
+    } else {
+      None
+    }
+  }
+
   /// Метод создания подключения с SOCKS5 прокси
   pub async fn connect(&self) -> ProxyResult<TcpStream> {
     let (target_host, target_port) = {
