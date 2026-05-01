@@ -6,7 +6,7 @@ async fn main() {
   // Создаём список ботов
   let mut bots = Vec::new();
 
-  // Добавляем ботов в рой
+  // Добавляем ботов в наш список
   for i in 0..6 {
     bots.push(Bot::create(format!("nurtex_bot_{}", i)));
   }

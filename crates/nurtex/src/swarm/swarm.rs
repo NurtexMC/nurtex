@@ -7,9 +7,54 @@ use tokio::task::JoinHandle;
 
 use crate::bot::Bot;
 use crate::storage::Storage;
-use crate::swarm::{JoinDelay, Speedometer, TargetServer};
+use crate::swarm::{JoinDelay, TargetServer};
 
-/// Рой ботов
+/// Рой ботов.  
+///
+/// Данная структура использует специальную архитектуру,
+/// которая позволяет ботам хранить данные о мире в одном
+/// месте. Из-за этого потребление RAM значительно меньше,
+/// чем при запуске тех же ботов по отдельности.
+///
+/// ## Примеры
+///
+/// ```rust, ignore
+/// use nurtex::{Bot, JoinDelay, Swarm};
+/// use nurtex::bot::BotChatExt;
+///
+/// #[tokio::main]
+/// async fn main() -> std::io::Result<()> {
+///   // Создаём рой
+///   let mut swarm = Swarm::create()
+///     .set_join_delay(JoinDelay::fixed(500))
+///     .bind("localhost", 25565);
+///
+///   // Добавляем ботов в рой
+///   for i in 0..6 {
+///     swarm.add_bot(Bot::create(format!("nurtex_bot_{}", i)));
+///   }
+///
+///   // Запускаем рой
+///   swarm.launch().await;
+///
+///   // Ждём немного
+///   tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+///
+///   // Отправляем от каждого бота сообщение в чат
+///   swarm.for_each_parallel(async |bot| {
+///     // Игнорируем возможные ошибки
+///     let _ = bot.chat_message(format!("Привет, я {}!", bot.username())).await;
+///   });
+///
+///   // Ждём немного
+///   tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+///
+///   // Выключаем рой
+///   swarm.shutdown().await
+/// }
+/// ```
+///
+/// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/crates/nurtex/examples)
 pub struct Swarm {
   /// Список всех ботов
   pub bots: Vec<Arc<Bot>>,
@@ -23,9 +68,6 @@ pub struct Swarm {
   /// Список всех хэндлов
   handles: Vec<JoinHandle<core::result::Result<(), std::io::Error>>>,
 
-  /// Спидометр (опционально)
-  speedometer: Option<Arc<Speedometer>>,
-
   /// Общее хранилище данных
   shared_storage: Arc<RwLock<Storage>>,
 }
@@ -38,7 +80,6 @@ impl Swarm {
       target_server: Arc::new(RwLock::new(TargetServer::default())),
       join_delay: Arc::new(JoinDelay::fixed(1000)),
       handles: Vec::new(),
-      speedometer: None,
       shared_storage: Arc::new(RwLock::new(Storage::null())),
     }
   }
@@ -50,27 +91,8 @@ impl Swarm {
       target_server: Arc::new(RwLock::new(TargetServer::default())),
       join_delay: Arc::new(JoinDelay::fixed(1000)),
       handles: Vec::with_capacity(capacity),
-      speedometer: None,
       shared_storage: Arc::new(RwLock::new(Storage::null())),
     }
-  }
-
-  /// Метод создания нового роя со спидометром
-  pub fn create_with_speedometer(speedometer: Arc<Speedometer>) -> Self {
-    Self {
-      bots: Vec::new(),
-      target_server: Arc::new(RwLock::new(TargetServer::default())),
-      join_delay: Arc::new(JoinDelay::fixed(1000)),
-      handles: Vec::new(),
-      speedometer: Some(speedometer),
-      shared_storage: Arc::new(RwLock::new(Storage::null())),
-    }
-  }
-
-  /// Метод установки спидометра
-  pub fn set_speedometer(mut self, speedometer: Arc<Speedometer>) -> Self {
-    self.speedometer = Some(speedometer);
-    self
   }
 
   /// Метод установки общего хранилища
@@ -103,15 +125,6 @@ impl Swarm {
     let mut guard = self.target_server.write().await;
     guard.host = server_host.into();
     guard.port = server_port;
-  }
-
-  /// Метод получения спидометра
-  pub fn get_speedometer(&self) -> Option<Arc<Speedometer>> {
-    if let Some(speedometer) = &self.speedometer {
-      Some(Arc::clone(speedometer))
-    } else {
-      None
-    }
   }
 
   /// Метод получения общего хранилища
@@ -305,10 +318,6 @@ impl Swarm {
       bot.shutdown().await?;
     }
 
-    if let Some(speedometer) = &self.speedometer {
-      speedometer.stop();
-    }
-
     self.handles.clear();
     self.bots.clear();
     self.shared_storage.write().await.clear();
@@ -337,14 +346,13 @@ impl Swarm {
 
 #[cfg(test)]
 mod tests {
-  use std::io;
   use std::time::Duration;
 
   use crate::bot::Bot;
   use crate::swarm::{JoinDelay, Swarm};
 
   #[tokio::test]
-  async fn test_instant() -> io::Result<()> {
+  async fn test_instant() -> std::io::Result<()> {
     let mut swarm = Swarm::create_with_capacity(10);
 
     for i in 0..10 {
@@ -370,24 +378,32 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_quiet() -> io::Result<()> {
+  async fn test_quiet() -> std::io::Result<()> {
     let mut bots = Vec::new();
 
     for i in 0..10 {
       bots.push(Bot::create(format!("nurtex_{}", i)));
     }
 
-    Swarm::create_with_capacity(10)
+    let mut swarm = Swarm::create_with_capacity(10)
       .with_bots(bots)
       .set_join_delay(JoinDelay::fixed(200))
-      .bind("localhost", 25565)
-      .quiet_launch();
+      .bind("localhost", 25565);
+
+    let handle = swarm.quiet_launch();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    handle.abort();
+    swarm.shutdown().await?;
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
 
     Ok(())
   }
 
   #[tokio::test]
-  async fn test_wait_handles() -> io::Result<()> {
+  async fn test_wait_handles() -> std::io::Result<()> {
     let mut swarm = Swarm::create_with_capacity(6).set_join_delay(JoinDelay::fixed(200)).bind("localhost", 25565);
 
     for i in 0..6 {
@@ -402,7 +418,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_shared_storage() -> io::Result<()> {
+  async fn test_shared_storage() -> std::io::Result<()> {
     let mut swarm = Swarm::create_with_capacity(6).set_join_delay(JoinDelay::fixed(200)).bind("localhost", 25565);
 
     for i in 0..6 {
