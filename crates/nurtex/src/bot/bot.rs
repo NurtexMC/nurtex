@@ -34,6 +34,31 @@ pub type PacketReader = Arc<broadcast::Sender<ClientsidePacket>>;
 pub type PacketWriter = Arc<broadcast::Sender<ServersidePlayPacket>>;
 
 /// Структура Minecraft бота
+///
+/// ## Примеры
+/// ```rust, ignore
+/// use nurtex::bot::{Bot, BotChatExt};
+///
+/// #[tokio::main]
+/// async fn main() -> std::io::Result<()> {
+///   // Создаём бота
+///   let mut bot = Bot::create("nurtex_bot");
+///
+///   // Подключаем бота к серверу
+///   bot.connect("localhost", 25565);
+///
+///   // Ждём немножко
+///   tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+///
+///   // Отправляем сообщение в чат
+///   bot.chat_message("Привет, мир!").await?;
+///
+///   // Ожидаем окончания хэндла подключения
+///   bot.wait_handle().await
+/// }
+/// ```
+///
+/// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/crates/nurtex/examples)
 pub struct Bot {
   pub profile: Arc<RwLock<BotProfile>>,
   pub connection: BotConnection,
@@ -233,12 +258,34 @@ impl Bot {
     let _ = self.writer_tx.send(packet);
   }
 
-  /// Метод подключения бота к серверу
+  /// Метод подключения бота к серверу.
+  ///
+  /// ## Примеры
+  ///
+  /// ```rust, ignore
+  /// use nurtex::Bot;
+  ///
+  /// #[tokio::main]
+  /// async fn main() -> std::io::Result<()> {
+  ///   // Создаём бота
+  ///   let mut bot = Bot::create("nurtex_bot");
+  ///
+  ///   // Подключаем бота к серверу.
+  ///   // Если после вызова этого метода выполняются
+  ///   // какие-либо действия с ботом, рекомендуется
+  ///   // подождать несколько секунд, чтобы бот
+  ///   // полностью подключился к серверу
+  ///   bot.connect("localhost", 25565);
+  ///
+  ///   // Ожидаем окончания хэндла подключения
+  ///   bot.wait_handle().await
+  /// }
+  /// ```
   pub fn connect(&mut self, server_host: impl Into<String>, server_port: u16) {
     self.handle = Some(self.connect_with_handle(server_host, server_port));
   }
 
-  /// Метод подключения бота к серверу, который возвращает хендл бота
+  /// Метод подключения бота к серверу, который возвращает хэндл бота
   pub fn connect_with_handle(&self, server_host: impl Into<String>, server_port: u16) -> JoinHandle<core::result::Result<(), std::io::Error>> {
     let connection = Arc::clone(&self.connection);
     let profile = Arc::clone(&self.profile);
@@ -255,87 +302,53 @@ impl Bot {
     let port = server_port;
 
     tokio::spawn(async move {
-      Self::connection_loop(
-        connection,
-        profile,
-        components,
-        speedometer,
-        plugins,
-        reader_tx,
-        writer_tx,
-        storage,
-        protocol_version,
-        coonnection_timeout,
-        proxy,
-        host,
-        port,
-      )
-      .await
+      let mut reconnection_attempts = 0;
+      let max_attempts = if plugins.auto_reconnect.enabled { plugins.auto_reconnect.max_attempts } else { 1 };
+
+      loop {
+        let reader_handle = Self::run_reader(Arc::clone(&connection), Arc::clone(&reader_tx));
+        let writer_handle = Self::run_writer(Arc::clone(&connection), Arc::clone(&writer_tx));
+
+        let result = Self::spawn_connection(
+          &connection,
+          &profile,
+          &components,
+          &speedometer,
+          &plugins,
+          &reader_tx,
+          &storage,
+          protocol_version,
+          coonnection_timeout,
+          &proxy,
+          &host,
+          port,
+        )
+        .await;
+
+        // На этом моменте бот считается не подключенным к серверу, поэтому нужно отменять reader / writer
+        reader_handle.abort();
+        writer_handle.abort();
+
+        match result {
+          Ok(_) => return Ok(()),
+          Err(e) => match e.kind() {
+            ErrorKind::ConnectionAborted | ErrorKind::ConnectionRefused | ErrorKind::ConnectionReset | ErrorKind::TimedOut | ErrorKind::NotConnected | ErrorKind::NetworkDown => {
+              if !plugins.auto_reconnect.enabled || (max_attempts != -1 && reconnection_attempts >= max_attempts) {
+                return Err(e);
+              }
+
+              reconnection_attempts += 1;
+
+              tokio::time::sleep(Duration::from_millis(plugins.auto_reconnect.reconnect_delay)).await;
+            }
+            _ => return Err(e),
+          },
+        }
+      }
     })
   }
 
-  /// Метод запуска цикла подключения
-  async fn connection_loop(
-    connection: Arc<RwLock<Option<NurtexConnection>>>,
-    profile: Arc<RwLock<BotProfile>>,
-    components: Arc<RwLock<BotComponents>>,
-    speedometer: Option<Arc<Speedometer>>,
-    plugins: BotPlugins,
-    reader_tx: PacketReader,
-    writer_tx: PacketWriter,
-    storage: Arc<RwLock<Storage>>,
-    protocol_version: i32,
-    coonnection_timeout: u64,
-    proxy: Arc<RwLock<Option<Proxy>>>,
-    host: String,
-    port: u16,
-  ) -> std::io::Result<()> {
-    let mut reconnection_attempts = 0;
-    let max_attempts = if plugins.auto_reconnect.enabled { plugins.auto_reconnect.max_attempts } else { 1 };
-
-    loop {
-      let reader_handle = Self::run_reader(Arc::clone(&connection), Arc::clone(&reader_tx));
-      let writer_handle = Self::run_writer(Arc::clone(&connection), Arc::clone(&writer_tx));
-
-      let result = Self::spawn_connection(
-        &connection,
-        &profile,
-        &components,
-        &speedometer,
-        &plugins,
-        &reader_tx,
-        &storage,
-        protocol_version,
-        coonnection_timeout,
-        &proxy,
-        &host,
-        port,
-      )
-      .await;
-
-      // На этом моменте бот считается не подключенным к серверу, поэтому нужно отменять reader / writer
-      reader_handle.abort();
-      writer_handle.abort();
-
-      match result {
-        Ok(_) => return Ok(()),
-        Err(e) => match e.kind() {
-          ErrorKind::ConnectionAborted | ErrorKind::ConnectionRefused | ErrorKind::ConnectionReset | ErrorKind::TimedOut | ErrorKind::NotConnected | ErrorKind::NetworkDown => {
-            if !plugins.auto_reconnect.enabled || (max_attempts != -1 && reconnection_attempts >= max_attempts) {
-              return Err(e);
-            }
-
-            reconnection_attempts += 1;
-
-            tokio::time::sleep(Duration::from_millis(plugins.auto_reconnect.reconnect_delay)).await;
-          }
-          _ => return Err(e),
-        },
-      }
-    }
-  }
-
-  /// Метод спавна одного процесса подключения
+  /// Метод спавна процесса подключения
   async fn spawn_connection(
     connection: &Arc<RwLock<Option<NurtexConnection>>>,
     profile: &Arc<RwLock<BotProfile>>,
@@ -365,14 +378,14 @@ impl Bot {
           Ok(c) => c,
           Err(err) => return Err(err),
         },
-        Err(_) => return Err(Error::new(ErrorKind::TimedOut, "Failed to receive a response from the server within the specified timeout")),
+        Err(_) => return Err(Error::new(ErrorKind::TimedOut, "failed to receive a response from server within specified timeout")),
       },
       None => match tokio::time::timeout(Duration::from_millis(coonnection_timeout), NurtexConnection::new(host, port)).await {
         Ok(result) => match result {
           Ok(c) => c,
           Err(err) => return Err(err),
         },
-        Err(_) => return Err(Error::new(ErrorKind::TimedOut, "Failed to receive a response from the server within the specified timeout")),
+        Err(_) => return Err(Error::new(ErrorKind::TimedOut, "failed to receive a response from server within specified timeout")),
       },
     };
 
@@ -437,7 +450,7 @@ impl Bot {
           break;
         }
         ClientsideLoginPacket::Disconnect(_p) => {
-          return Err(Error::new(ErrorKind::ConnectionReset, "The connection was reset by the server"));
+          return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
         }
         _ => {}
       }
@@ -513,7 +526,7 @@ impl Bot {
           .await?;
         }
         ClientsideConfigurationPacket::Disconnect(_p) => {
-          return Err(Error::new(ErrorKind::ConnectionReset, "The connection was reset by the server"));
+          return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
         }
         _ => {}
       }
@@ -539,7 +552,7 @@ impl Bot {
         Ok(Ok(ClientsidePacket::Play(play_packet))) => play_packet,
         Ok(Ok(_)) => continue,
         Ok(Err(broadcast::error::RecvError::Lagged(_))) => continue,
-        Ok(Err(broadcast::error::RecvError::Closed)) => return Err(Error::new(ErrorKind::ConnectionReset, "The connection was reset by the server")),
+        Ok(Err(broadcast::error::RecvError::Closed)) => return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server")),
         Err(_) => continue,
       };
 
@@ -711,7 +724,7 @@ impl Bot {
           }
         }
         ClientsidePlayPacket::Disconnect(_p) => {
-          return Err(Error::new(ErrorKind::ConnectionReset, "The connection was reset by the server"));
+          return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
         }
         _ => {}
       }

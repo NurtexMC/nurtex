@@ -21,10 +21,41 @@ pub struct IpInfo {
 
 /// Трейт прокси чекера
 pub trait ProxyChecker {
-  /// Метод проверки работоспособности прокси, используя `ipinfo.io`
+  /// Метод проверки работоспособности прокси, используя `ipinfo.io`.
+  ///
+  /// ## Примеры
+  ///
+  /// ```rust, ignore
+  /// use nurtex_proxy::{Proxy, ProxyChecker};
+  ///
+  /// // Создаём прокси
+  /// let proxy = Proxy::new("PROXY_IP:PROXY_PORT");
+  ///
+  /// // Проверяем доступность прокси
+  /// if proxy.check_proxy().await {
+  ///   println!("Прокси доступен");
+  /// } else {
+  ///   println!("Прокси недоступен");
+  /// }
+  /// ```
   fn check_proxy(&self) -> impl std::future::Future<Output = bool> + Send;
 
-  /// Метод получения информации об IP с `ipinfo.io`
+  /// Метод получения информации об IP с `ipinfo.io`.
+  ///
+  /// ## Примеры
+  ///
+  /// ```rust, ignore
+  /// use nurtex_proxy::{Proxy, ProxyChecker};
+  ///
+  /// // Создаём прокси и получаем информацию об IP
+  /// let proxy = Proxy::new("PROXY_IP:PROXY_PORT");
+  /// let ip_info = proxy.get_ip_info().await;
+  ///
+  /// println!("Имя хоста: {}", ip_info.hostname);
+  /// println!("Страна: {}", ip_info.country);
+  /// println!("Город: {}", ip_info.city);
+  /// println!("Локация: {}", ip_info.loc);
+  /// ```
   fn get_ip_info(&self) -> impl std::future::Future<Output = Option<IpInfo>> + Send;
 }
 

@@ -17,7 +17,20 @@ const ATYP_IPV4: u8 = 0x01;
 const ATYP_IPV6: u8 = 0x04;
 const ATYP_DOMAIN: u8 = 0x03;
 
-/// Структура SOCKS5 прокси
+/// Структура SOCKS5 прокси.
+///
+/// ## Примеры
+///
+/// ```rust, ignore
+/// use nurtex_proxy::{Proxy, ProxyAuth};
+///
+/// // Прокси без авторизации
+/// let proxy = Proxy::new("PROXY_IP:PROXY_PORT");
+///
+/// // Прокси с авторизацией
+/// let auth = ProxyAuth::new("USERNAME", "PASSWORD");
+/// let proxy = Proxy::new_with_auth("PROXY_IP:PROXY_PORT", auth);
+/// ```
 #[derive(Debug, Clone)]
 pub struct Proxy {
   proxy_address: String,
@@ -116,9 +129,9 @@ impl Proxy {
     let mut stream = match timeout(Duration::from_millis(self.timeout), TcpStream::connect(&self.proxy_address)).await {
       Ok(result) => match result {
         Ok(s) => s,
-        Err(_) => return ProxyResult::Failed(ProxyError::new(ErrorName::NotConnected, "could not connect to the specified server")),
+        Err(_) => return ProxyResult::Failed(ProxyError::new(ErrorName::NotConnected, "could not connect to specified server")),
       },
-      Err(_) => return ProxyResult::Failed(ProxyError::new(ErrorName::Timeout, "Failed to connect to the server within the specified time")),
+      Err(_) => return ProxyResult::Failed(ProxyError::new(ErrorName::Timeout, "failed to connect to server within specified time")),
     };
 
     let mut greet = vec![PROXY_VERSION, if self.auth.is_some() { 2 } else { 1 }, 0x00];

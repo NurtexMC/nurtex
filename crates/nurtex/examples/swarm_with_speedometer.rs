@@ -8,10 +8,8 @@ async fn main() {
   // Создаём спидометр
   let speedometer = Arc::new(Speedometer::new(100));
 
-  // Создаём рой со спидометром
-  let mut swarm = Swarm::create_with_speedometer(Arc::clone(&speedometer))
-    .set_join_delay(JoinDelay::regressive_linear(5000, 50))
-    .bind("localhost", 25565);
+  // Создаём рой
+  let mut swarm = Swarm::create().set_join_delay(JoinDelay::regressive_linear(5000, 50)).bind("localhost", 25565);
 
   // Добавляем ботов в рой
   for i in 0..50 {

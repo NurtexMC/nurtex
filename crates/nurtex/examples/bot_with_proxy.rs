@@ -6,7 +6,7 @@ use nurtex::proxy::Proxy;
 /// Адрес SOCKS5 прокси, например `164.85.71.8:2749`
 const PROXY_ADDRESS: &str = "YOUR_SOCKS5_PROXY";
 
-/// Хост **публичного** сервера, например `mc.server.com` 
+/// Хост **публичного** сервера, например `mc.server.com`
 const SERVER_HOST: &str = "PUBLIC_HOST";
 
 #[tokio::main]
