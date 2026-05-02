@@ -4,7 +4,6 @@ use tokio::sync::RwLock;
 
 use crate::bot::BotComponents;
 use crate::protocol::connection::NurtexConnection;
-use crate::storage::Storage;
 
 /// Функция временного захвата подключения
 pub async fn capture_connection<F>(connection: &Arc<RwLock<Option<NurtexConnection>>>, f: F) -> std::io::Result<()>
@@ -25,14 +24,5 @@ where
   F: AsyncFnOnce(&mut BotComponents),
 {
   let mut guard = components.write().await;
-  f(&mut *guard).await
-}
-
-/// Функция временного захвата хранилища
-pub async fn capture_storage<F>(storage: &Arc<RwLock<Storage>>, f: F)
-where
-  F: AsyncFnOnce(&mut Storage),
-{
-  let mut guard = storage.write().await;
   f(&mut *guard).await
 }
