@@ -18,144 +18,144 @@ use crate::packets::play::{
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
 pub enum ClientsidePlayPacket {
-  #[packet_id = 0x2B]
+  #[id = 0x2B]
   KeepAlive(MultisideKeepAlive),
-  #[packet_id = 0x3B]
+  #[id = 0x3B]
   Ping(ClientsidePing),
-  #[packet_id = 0x3C]
+  #[id = 0x3C]
   PingResponse(ClientsidePingResponse),
-  #[packet_id = 0x19]
+  #[id = 0x19]
   DamageEvent(ClientsideDamageEvent),
-  #[packet_id = 0x33]
+  #[id = 0x33]
   UpdateEntityPos(ClientsideUpdateEntityPos),
-  #[packet_id = 0x36]
+  #[id = 0x36]
   UpdateEntityRot(ClientsideUpdateEntityRot),
-  #[packet_id = 0x34]
+  #[id = 0x34]
   UpdateEntityPosRot(ClientsideUpdateEntityPosRot),
-  #[packet_id = 0x46]
+  #[id = 0x46]
   PlayerPosition(ClientsidePlayerPosition),
-  #[packet_id = 0x47]
+  #[id = 0x47]
   PlayerRotation(ClientsidePlayerRotation),
-  #[packet_id = 0x45]
+  #[id = 0x45]
   PlayerLookAt(ClientsidePlayerLookAt),
-  #[packet_id = 0x42]
+  #[id = 0x42]
   PlayerCombatKill(ClientsidePlayerCombatKill),
-  #[packet_id = 0x66]
+  #[id = 0x66]
   SetHealth(ClientsideSetHealth),
-  #[packet_id = 0x65]
+  #[id = 0x65]
   SetExperience(ClientsideSetExperience),
-  #[packet_id = 0x69]
+  #[id = 0x69]
   SetPassengers(ClientsideSetPassengers),
-  #[packet_id = 0x63]
+  #[id = 0x63]
   SetEntityVelocity(ClientsideSetEntityVelocity),
-  #[packet_id = 0x01]
+  #[id = 0x01]
   SpawnEntity(ClientsideSpawnEntity),
-  #[packet_id = 0x4B]
+  #[id = 0x4B]
   RemoveEntities(ClientsideRemoveEntities),
-  #[packet_id = 0x20]
+  #[id = 0x20]
   Disconnect(ClientsideDisconnect),
-  #[packet_id = 0x3F]
+  #[id = 0x3F]
   PlayerChat(ClientsidePlayerChat),
-  #[packet_id = 0x77]
+  #[id = 0x77]
   SystemChat(ClientsideSystemChat),
-  #[packet_id = 0x7F]
+  #[id = 0x7F]
   Transfer(ClientsideTransfer),
-  #[packet_id = 0x62]
+  #[id = 0x62]
   SetEntityLink(ClientsideSetEntityLink),
-  #[packet_id = 0x5D]
+  #[id = 0x5D]
   ChunkCacheRadius(ClientsideChunkCacheRadius),
-  #[packet_id = 0x5C]
+  #[id = 0x5C]
   ChunkCacheCenter(ClientsideChunkCacheCenter),
-  #[packet_id = 0x5B]
+  #[id = 0x5B]
   SetCamera(ClientsideSetCamera),
-  #[packet_id = 0x51]
+  #[id = 0x51]
   RotateHead(ClientsideRotateHead),
-  #[packet_id = 0x52]
+  #[id = 0x52]
   SectionBlocksUpdate(ClientsideSectionBlocksUpdate),
-  #[packet_id = 0x4F]
+  #[id = 0x4F]
   AddResourcePack(ClientsideAddResourcePack),
-  #[packet_id = 0x4E]
+  #[id = 0x4E]
   RemoveResourcePack(ClientsideRemoveResourcePack),
-  #[packet_id = 0x4C]
+  #[id = 0x4C]
   RemoveEntityEffect(ClientsideRemoveEntityEffect),
-  #[packet_id = 0x39]
+  #[id = 0x39]
   OpenContainer(ClientsideOpenContainer),
-  #[packet_id = 0x37]
+  #[id = 0x37]
   MoveVehicle(ClientsideMoveVehicle),
-  #[packet_id = 0x30]
+  #[id = 0x30]
   Login(ClientsideLogin),
-  #[packet_id = 0x23]
+  #[id = 0x23]
   EntityPositionSync(ClientsideEntityPositionSync),
-  #[packet_id = 0x24]
+  #[id = 0x24]
   Explosion(ClientsideExplosion),
-  #[packet_id = 0x25]
+  #[id = 0x25]
   UnloadChunk(ClientsideUnloadChunk),
-  #[packet_id = 0x26]
+  #[id = 0x26]
   GameEvent(ClientsideGameEvent),
-  #[packet_id = 0x1F]
+  #[id = 0x1F]
   ClearChat(ClientsideClearChat),
-  #[packet_id = 0x0C]
+  #[id = 0x0C]
   ChunkBatchStart(ClientsideChunkBatchStart),
-  #[packet_id = 0x0B]
+  #[id = 0x0B]
   ChunkBatchFinished(ClientsideChunkBatchFinished),
-  #[packet_id = 0x2C]
+  #[id = 0x2C]
   LoadChunkWithLight(ClientsideLoadChunkWithLight),
-  #[packet_id = 0x08]
+  #[id = 0x08]
   BlockUpdate(ClientsideBlockUpdate),
-  #[packet_id = 0x12]
+  #[id = 0x12]
   ContainerSetContent(ClientsideContainerSetContent),
-  #[packet_id = 0x14]
+  #[id = 0x14]
   ContainerSetSlot(ClientsideContainerSetSlot),
-  #[packet_id = 0x2F]
+  #[id = 0x2F]
   LightUpdate(ClientsideLightUpdate),
-  #[packet_id = 0x11]
+  #[id = 0x11]
   CloseContainer(ClientsideCloseContainer),
-  #[packet_id = 0x13]
+  #[id = 0x13]
   ContainerSetData(ClientsideContainerSetData),
 }
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
 pub enum ServersidePlayPacket {
-  #[packet_id = 0x1B]
+  #[id = 0x1B]
   KeepAlive(MultisideKeepAlive),
-  #[packet_id = 0x2C]
+  #[id = 0x2C]
   Pong(ServersidePong),
-  #[packet_id = 0x25]
+  #[id = 0x25]
   PingRequest(ServersidePingRequest),
-  #[packet_id = 0x00]
+  #[id = 0x00]
   AcceptTeleportation(ServersideAcceptTeleportation),
-  #[packet_id = 0x3C]
+  #[id = 0x3C]
   SwingArm(ServersideSwingArm),
-  #[packet_id = 0x40]
+  #[id = 0x40]
   UseItem(ServersideUseItem),
-  #[packet_id = 0x1D]
+  #[id = 0x1D]
   MovePlayerPos(ServersideMovePlayerPos),
-  #[packet_id = 0x1F]
+  #[id = 0x1F]
   MovePlayerRot(ServersideMovePlayerRot),
-  #[packet_id = 0x1E]
+  #[id = 0x1E]
   MovePlayerPosRot(ServersideMovePlayerPosRot),
-  #[packet_id = 0x20]
+  #[id = 0x20]
   MovePlayerStatusOnly(ServersideMovePlayerStatusOnly),
-  #[packet_id = 0x0B]
+  #[id = 0x0B]
   ClientCommand(ServersideClientCommand),
-  #[packet_id = 0x06]
+  #[id = 0x06]
   ChatCommand(ServersideChatCommand),
-  #[packet_id = 0x08]
+  #[id = 0x08]
   ChatMessage(ServersideChatMessage),
-  #[packet_id = 0x34]
+  #[id = 0x34]
   SetHeldItem(ServersideSetHeldItem),
-  #[packet_id = 0x19]
+  #[id = 0x19]
   Interact(ServersideInteract),
-  #[packet_id = 0x28]
+  #[id = 0x28]
   PlayerAction(ServersidePlayerAction),
-  #[packet_id = 0x29]
+  #[id = 0x29]
   PlayerCommand(ServersidePlayerCommand),
-  #[packet_id = 0x30]
+  #[id = 0x30]
   ResourcePackResponse(ServersideResourcePackResponse),
-  #[packet_id = 0x11]
+  #[id = 0x11]
   ContainerClick(ServersideContainerClick),
-  #[packet_id = 0x12]
+  #[id = 0x12]
   ContainerClose(ServersideContainerClose),
-  #[packet_id = 0x17]
+  #[id = 0x17]
   EditBook(ServersideEditBook),
 }

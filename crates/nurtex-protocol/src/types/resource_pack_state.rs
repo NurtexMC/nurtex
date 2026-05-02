@@ -1,5 +1,7 @@
-use nurtex_codec::{Buffer, VarInt};
+use nurtex_codec::Buffer;
+use nurtex_codec::types::variable::VarI32;
 
+/// Состояние ресурс пака
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ResourcePackState {
   SuccessfullyLoaded,
@@ -14,7 +16,7 @@ pub enum ResourcePackState {
 
 impl Buffer for ResourcePackState {
   fn read_buf(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self> {
-    let id = i32::read_varint(buffer)?;
+    let id = i32::read_var(buffer)?;
 
     Some(match id {
       0 => Self::SuccessfullyLoaded,
@@ -30,17 +32,17 @@ impl Buffer for ResourcePackState {
   }
 
   fn write_buf(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()> {
-    match self {
-      Self::SuccessfullyLoaded => 0.write_varint(buffer)?,
-      Self::Declined => 1.write_varint(buffer)?,
-      Self::FailedDownload => 2.write_varint(buffer)?,
-      Self::Accepted => 3.write_varint(buffer)?,
-      Self::Downloaded => 4.write_varint(buffer)?,
-      Self::InvalidUrl => 5.write_varint(buffer)?,
-      Self::FailedToReload => 6.write_varint(buffer)?,
-      Self::Discarded => 7.write_varint(buffer)?,
-    }
+    let id = match self {
+      Self::SuccessfullyLoaded => 0,
+      Self::Declined => 1,
+      Self::FailedDownload => 2,
+      Self::Accepted => 3,
+      Self::Downloaded => 4,
+      Self::InvalidUrl => 5,
+      Self::FailedToReload => 6,
+      Self::Discarded => 7,
+    };
 
-    Ok(())
+    id.write_var(buffer)
   }
 }

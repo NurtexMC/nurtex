@@ -600,44 +600,56 @@ impl Bot {
           storage.add_entity(p.entity_id, entity).await;
         }
         ClientsidePlayPacket::RemoveEntities(p) => {
-          storage.capture_entities(async |entities| {
-            p.entities.iter().for_each(|entity_id| { 
-              entities.remove(entity_id);
-            });
-          }).await;
+          storage
+            .capture_entities(async |entities| {
+              p.entities.iter().for_each(|entity_id| {
+                entities.remove(entity_id);
+              });
+            })
+            .await;
         }
         ClientsidePlayPacket::EntityPositionSync(p) => {
-          storage.capture_entity(&p.entity_id, async |entity| {
-            entity.position = p.position;
-            entity.rotation = p.rotation;
-            entity.velocity = p.velocity;
-            entity.on_ground = p.on_ground;
-          }).await;
+          storage
+            .capture_entity(&p.entity_id, async |entity| {
+              entity.position = p.position;
+              entity.rotation = p.rotation;
+              entity.velocity = p.velocity;
+              entity.on_ground = p.on_ground;
+            })
+            .await;
         }
         ClientsidePlayPacket::UpdateEntityPos(p) => {
-          storage.capture_entity(&p.entity_id, async |entity| {
-            // entity.position.with_delta(p.delta_x, p.delta_y, p.delta_z);
-            entity.on_ground = p.on_ground;
-          }).await;
+          storage
+            .capture_entity(&p.entity_id, async |entity| {
+              // entity.position.with_delta(p.delta_x, p.delta_y, p.delta_z);
+              entity.on_ground = p.on_ground;
+            })
+            .await;
         }
         ClientsidePlayPacket::UpdateEntityRot(p) => {
-          storage.capture_entity(&p.entity_id, async |entity| {
-            entity.rotation = Rotation::from_angle(p.yaw_angle, p.pitch_angle);
-            entity.on_ground = p.on_ground;
-          }).await;
+          storage
+            .capture_entity(&p.entity_id, async |entity| {
+              entity.rotation = Rotation::from_angle(p.yaw_angle, p.pitch_angle);
+              entity.on_ground = p.on_ground;
+            })
+            .await;
         }
         ClientsidePlayPacket::UpdateEntityPosRot(p) => {
-          storage.capture_entity(&p.entity_id, async |entity| {
-            // entity.position.with_delta(p.delta_x, p.delta_y, p.delta_z);
-            entity.rotation = Rotation::from_angle(p.yaw_angle, p.pitch_angle);
-            entity.on_ground = p.on_ground;
-          }).await;
+          storage
+            .capture_entity(&p.entity_id, async |entity| {
+              // entity.position.with_delta(p.delta_x, p.delta_y, p.delta_z);
+              entity.rotation = Rotation::from_angle(p.yaw_angle, p.pitch_angle);
+              entity.on_ground = p.on_ground;
+            })
+            .await;
         }
         ClientsidePlayPacket::SetEntityVelocity(p) => {
-          storage.capture_entity(&p.entity_id, async |entity| {
-            entity.position.with_velocity(p.velocity.to_vector3());
-            entity.velocity = Vector3::from_lp_vector3(p.velocity);
-          }).await;
+          storage
+            .capture_entity(&p.entity_id, async |entity| {
+              entity.position.with_velocity(p.velocity.to_vector3());
+              entity.velocity = Vector3::from_lp_vector3(p.velocity);
+            })
+            .await;
         }
         ClientsidePlayPacket::KeepAlive(p) => {
           capture_connection(&connection, async |conn| {
@@ -873,14 +885,13 @@ mod tests {
 
   #[tokio::test]
   async fn test_auto_respawn() -> io::Result<()> {
-    let mut bot = Bot::create("nurtex_bot")
-      .set_plugins(BotPlugins {
-        auto_respawn: AutoRespawnPlugin {
-          enabled: true,
-          respawn_delay: 2000,
-        },
-        ..Default::default()
-      });
+    let mut bot = Bot::create("nurtex_bot").set_plugins(BotPlugins {
+      auto_respawn: AutoRespawnPlugin {
+        enabled: true,
+        respawn_delay: 2000,
+      },
+      ..Default::default()
+    });
 
     bot.connect("localhost", 25565);
     bot.wait_handle().await
@@ -888,15 +899,14 @@ mod tests {
 
   #[tokio::test]
   async fn test_auto_reconnect() -> io::Result<()> {
-    let mut bot = Bot::create("nurtex_bot")
-      .set_plugins(BotPlugins {
-        auto_reconnect: AutoReconnectPlugin {
-          enabled: true,
-          reconnect_delay: 1000,
-          max_attempts: 3,
-        },
-        ..Default::default()
-      });
+    let mut bot = Bot::create("nurtex_bot").set_plugins(BotPlugins {
+      auto_reconnect: AutoReconnectPlugin {
+        enabled: true,
+        reconnect_delay: 1000,
+        max_attempts: 3,
+      },
+      ..Default::default()
+    });
 
     bot.connect("localhost", 25565);
 

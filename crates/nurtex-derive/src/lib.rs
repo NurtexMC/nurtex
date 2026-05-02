@@ -11,22 +11,21 @@ use generate::*;
 ///
 /// **Доступные атрибуты:**
 ///
-/// - `#packet[varint]`: Читает `i32` как `VarInt`
-/// - `#packet[varlong]`: Читает `i64` как `VarLong`
-/// - `#packet[vec_varint]`: Читает вектор из `i64` как `VarLong`
-/// - `#packet[vec_varlong]`: Читает вектор из `i64` как `VarLong`
-/// - `#packet[vec_end]`: Читает все оставшиеся байты из пакета (применяется если поле в конце пакета)
+/// - `#[varint]`: Читает `i32` как `VarI32`
+/// - `#[varlong]`: Читает `i64` как `VarI64`
+/// - `#[vec_varint]`: Читает вектор из `i32` как `VarI32`
+/// - `#[vec_varlong]`: Читает вектор из `i64` как `VarI64`
+/// - `#[vec_end]`: Читает все оставшиеся байты из пакета (применяется если поле в конце пакета)
 ///
-/// Атрибуты `#packet[varint]` и `#packet[varlong]` нужны для точного определения типа, так как
+/// Атрибуты `#[varint]` и `#[varlong]` нужны для точного определения типа, так как
 /// в пакеты записывается лишь полученное значение после чтения байтов через методы
-/// трейтов `VarInt` / `VarLong`, соответственно макрос сам не может точно определить
-/// что за тип подразумевает поле (`VarInt` или просто `i32`, `VarLong` или просто `i64`)
+/// трейтов `VarI32` / `VarI64`, соответственно макрос сам не может точно определить
+/// что за тип подразумевает поле (`VarI32` или просто `i32`, `VarI64` или просто `i64`).
 ///
-/// Так же есть оговорка: Если в `Option<>` лежит `VarInt` / `VarLong` значение,
-/// то указывается атрибут `#packet[varint]` / `#packet[varlong]`, макрос
-/// автоматически определит `Option<>` и корректно достанет значение
-/// `VarInt` / `VarLong` из него
-#[proc_macro_derive(Packet, attributes(packet))]
+/// Небольшое уточнение: Если `Option` содерижт в себе `VarI32` / `VarI64`
+/// значение, то указывается атрибут `#[varint]` / `#[varlong]`, макрос
+/// автоматически определит `Option` и корректно достанет значение из него
+#[proc_macro_derive(Packet, attributes(varint, varlong, vec_end, vec_varint, vec_varlong))]
 pub fn derive_packet(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
   let input = parse_macro_input!(input as DeriveInput);
 
@@ -52,7 +51,7 @@ pub fn derive_packet(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
 /// Макрос автоматической генерации методов для союза пакетов
 /// и для всех вариантов (то есть пакетов) этого союза
-#[proc_macro_derive(PacketUnion, attributes(packet_id))]
+#[proc_macro_derive(PacketUnion, attributes(id))]
 pub fn derive_packet_union(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
   let input = parse_macro_input!(input as DeriveInput);
 
@@ -61,7 +60,7 @@ pub fn derive_packet_union(input: proc_macro::TokenStream) -> proc_macro::TokenS
   let variants = match &input.data {
     Data::Enum(data) => &data.variants,
     _ => {
-      return syn::Error::new_spanned(enum_name, "PacketUnion can only be applied to enums").to_compile_error().into();
+      return syn::Error::new_spanned(enum_name, "packet union can only be applied to enums").to_compile_error().into();
     }
   };
 
@@ -90,18 +89,18 @@ pub fn derive_packet_union(input: proc_macro::TokenStream) -> proc_macro::TokenS
           }
         } else {
           quote! {
-            compile_error!("PacketUnion variants must have exactly one field");
+            compile_error!("packet union variants must have exactly one field");
           }
         }
       }
       syn::Fields::Named(_) => {
         quote! {
-          compile_error!("PacketUnion variants must use unnamed fields");
+          compile_error!("packet union variants must use unnamed fields");
         }
       }
       syn::Fields::Unit => {
         quote! {
-          compile_error!("PacketUnion variants cannot be unit variants");
+          compile_error!("packet union variants cannot be unit variants");
         }
       }
     }

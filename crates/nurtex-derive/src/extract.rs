@@ -1,17 +1,39 @@
-use syn::{GenericArgument, PathArguments, Type};
+use syn::{GenericArgument, Meta, PathArguments, Type};
 
-/// Функция извлечения атрибута пакета
-pub fn extract_packet_attr(f: &syn::Field) -> Option<String> {
-  f.attrs
-    .iter()
-    .find(|a| a.path().is_ident("packet"))
-    .and_then(|a| a.parse_args::<syn::Ident>().ok())
-    .map(|i| i.to_string())
+/// Функция извлечения особенности поля пакета
+pub fn extract_packet_field_feature(f: &syn::Field) -> Option<String> {
+  let mut feature = None;
+
+  for attr in &f.attrs {
+    match &attr.meta {
+      // #[name]
+      Meta::Path(p) => {
+        if let Some(ident) = p.get_ident() {
+          feature = Some(ident.to_string());
+        }
+      }
+      _ => {} /*
+              // #[name = "value"]
+              Meta::NameValue(nv) => {
+                if let syn::Expr::Lit(expr) = &nv.value {
+                  match &expr.lit {
+                    syn::Lit::Str(lit_str) => Some(lit_str.value()),
+                    _ => None,
+                  }
+                } else {
+                  None
+                }
+              }
+              */
+    }
+  }
+
+  feature
 }
 
 /// Функция извлечения ID пакета
 pub fn extract_packet_id(variant: &syn::Variant) -> Option<u32> {
-  variant.attrs.iter().find(|a| a.path().is_ident("packet_id")).and_then(|a| {
+  variant.attrs.iter().find(|a| a.path().is_ident("id")).and_then(|a| {
     if let syn::Meta::NameValue(nv) = &a.meta {
       if let syn::Expr::Lit(expr_lit) = &nv.value {
         match &expr_lit.lit {

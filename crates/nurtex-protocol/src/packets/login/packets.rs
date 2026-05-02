@@ -25,16 +25,15 @@ pub struct ClientsideLoginSuccess {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSetCompression {
-  #[packet(varint)]
+  #[varint]
   pub compression_threshold: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsidePluginRequest {
-  #[packet(varint)]
+  #[varint]
   pub message_id: i32,
   pub channel: String,
-  #[packet(vec_end)]
   pub data: Vec<u8>,
 }
 
@@ -57,7 +56,7 @@ pub struct ServersideEncryptionResponse {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersidePluginResponse {
-  #[packet(varint)]
+  #[varint]
   pub message_id: i32,
   pub data: Option<Vec<u8>>,
 }

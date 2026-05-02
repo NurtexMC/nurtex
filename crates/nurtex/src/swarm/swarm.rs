@@ -430,9 +430,7 @@ mod tests {
     for _ in 0..5 {
       let storage = swarm.get_shared_storage();
 
-      let entities = {
-        storage.entities.read().await.clone()
-      };
+      let entities = { storage.entities.read().await.clone() };
 
       println!("Сущности: {:?}", entities);
 

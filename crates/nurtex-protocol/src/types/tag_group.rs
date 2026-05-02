@@ -1,4 +1,5 @@
-use nurtex_codec::{Buffer, VarInt};
+use nurtex_codec::Buffer;
+use nurtex_codec::types::variable::VarI32;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TagGroup {
@@ -9,7 +10,7 @@ pub struct TagGroup {
 impl Buffer for TagGroup {
   fn read_buf(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self> {
     let tag_type = String::read_buf(buffer)?;
-    let tags_count = i32::read_varint(buffer)? as usize;
+    let tags_count = i32::read_var(buffer)? as usize;
     let mut group_tags = Vec::with_capacity(tags_count);
 
     for _ in 0..tags_count {
@@ -22,14 +23,14 @@ impl Buffer for TagGroup {
 
   fn write_buf(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()> {
     self.tag_type.write_buf(buffer)?;
-    (self.tags.len() as i32).write_varint(buffer)?;
+    (self.tags.len() as i32).write_var(buffer)?;
 
     for tag in &self.tags {
       tag.name.write_buf(buffer)?;
-      (tag.entries.len() as i32).write_varint(buffer)?;
+      (tag.entries.len() as i32).write_var(buffer)?;
 
       for entry in &tag.entries {
-        entry.write_varint(buffer)?;
+        entry.write_var(buffer)?;
       }
     }
 
@@ -48,11 +49,11 @@ impl Buffer for Tag {
     Some(Self {
       name: String::read_buf(buffer)?,
       entries: {
-        let entries_count = i32::read_varint(buffer)? as usize;
+        let entries_count = i32::read_var(buffer)? as usize;
         let mut entries = Vec::with_capacity(entries_count);
 
         for _ in 0..entries_count {
-          entries.push(i32::read_varint(buffer)?);
+          entries.push(i32::read_var(buffer)?);
         }
 
         entries
@@ -62,10 +63,10 @@ impl Buffer for Tag {
 
   fn write_buf(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()> {
     self.name.write_buf(buffer)?;
-    (self.entries.len() as i32).write_varint(buffer)?;
+    (self.entries.len() as i32).write_var(buffer)?;
 
     for entry in &self.entries {
-      entry.write_varint(buffer)?;
+      entry.write_var(buffer)?;
     }
 
     Ok(())

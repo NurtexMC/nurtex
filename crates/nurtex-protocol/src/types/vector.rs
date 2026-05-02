@@ -1,6 +1,5 @@
-use std::io::{self, Cursor, Write};
-
-use nurtex_codec::{Buffer, VarInt};
+use nurtex_codec::Buffer;
+use nurtex_codec::types::variable::VarI32;
 
 /// Структура позиции
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -55,7 +54,7 @@ impl Vector3 {
 }
 
 impl Buffer for Vector3 {
-  fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+  fn read_buf(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self> {
     Some(Self {
       x: f64::read_buf(buffer)?,
       y: f64::read_buf(buffer)?,
@@ -63,7 +62,7 @@ impl Buffer for Vector3 {
     })
   }
 
-  fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
+  fn write_buf(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()> {
     self.x.write_buf(buffer)?;
     self.y.write_buf(buffer)?;
     self.z.write_buf(buffer)?;
@@ -110,7 +109,7 @@ impl LpVector3 {
 }
 
 impl Buffer for LpVector3 {
-  fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+  fn read_buf(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self> {
     let byte1 = u8::read_buf(buffer)? as i32;
 
     if byte1 == 0 {
@@ -125,7 +124,7 @@ impl Buffer for LpVector3 {
     let mut scale_factor = (byte1 & 3) as i64;
 
     if (byte1 & 4) == 4 {
-      scale_factor |= (i32::read_varint(buffer)? as i64 & 0xFFFFFFFF) << 2;
+      scale_factor |= (i32::read_var(buffer)? as i64 & 0xFFFFFFFF) << 2;
     }
 
     let scale_factor_d = scale_factor as f64;
@@ -137,7 +136,7 @@ impl Buffer for LpVector3 {
     })
   }
 
-  fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
+  fn write_buf(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()> {
     let max_coordinate = self.x.abs().max(self.y.abs().max(self.z.abs()));
 
     if max_coordinate < 3.051944088384301e-5 {
@@ -164,7 +163,7 @@ impl Buffer for LpVector3 {
       ((packed >> 16) as u32).write_buf(buffer)?;
 
       if need_continuation {
-        ((scale_factor >> 2) as i32).write_varint(buffer)?;
+        ((scale_factor >> 2) as i32).write_var(buffer)?;
       }
     }
 
