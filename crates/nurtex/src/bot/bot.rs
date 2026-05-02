@@ -5,10 +5,11 @@ use std::time::Duration;
 use hashbrown::HashMap;
 use tokio::sync::{RwLock, broadcast};
 use tokio::task::JoinHandle;
+use uuid::Uuid;
 
 use crate::bot::capture::{capture_components, capture_connection};
 use crate::bot::plugins::BotPlugins;
-use crate::bot::{BotComponents, BotProfile, ClientInfo, capture_storage};
+use crate::bot::{BotComponents, BotProfile, ClientInfo};
 use crate::protocol::connection::utils::handle_encryption_request;
 use crate::protocol::connection::{ClientsidePacket, ConnectionState, NurtexConnection};
 use crate::protocol::packets::play::{ClientsidePlayPacket, ServersideAcceptTeleportation, ServersideClientCommand};
@@ -72,7 +73,7 @@ pub struct Bot {
   writer_tx: PacketWriter,
   speedometer: Option<Arc<Speedometer>>,
   components: Arc<RwLock<BotComponents>>,
-  storage: Arc<RwLock<Storage>>,
+  storage: Arc<Storage>,
 }
 
 impl Bot {
@@ -112,7 +113,7 @@ impl Bot {
       writer_tx: Arc::new(writer_tx),
       speedometer,
       components: Arc::new(RwLock::new(BotComponents::default())),
-      storage: Arc::new(RwLock::new(Storage::null())),
+      storage: Arc::new(Storage::null()),
     }
   }
 
@@ -208,7 +209,7 @@ impl Bot {
   }
 
   /// Метод установки хранилища данных
-  pub fn set_storage(mut self, storage: Arc<RwLock<Storage>>) -> Self {
+  pub fn set_storage(mut self, storage: Arc<Storage>) -> Self {
     self.storage = storage;
     self
   }
@@ -216,6 +217,11 @@ impl Bot {
   /// Метод получения юзернейма
   pub fn username(&self) -> &str {
     &self.username
+  }
+
+  /// Метод получения UUID
+  pub async fn uuid(&self) -> Uuid {
+    self.profile.read().await.uuid
   }
 
   /// Метод получения профиля бота
@@ -226,6 +232,11 @@ impl Bot {
   /// Метод получения прокси бота
   pub fn get_proxy(&self) -> Arc<RwLock<Option<Proxy>>> {
     Arc::clone(&self.proxy)
+  }
+
+  /// Метод получения хранилища
+  pub fn get_storage(&self) -> Arc<Storage> {
+    Arc::clone(&self.storage)
   }
 
   /// Вспомогательный метод подписки на слушание пакетов
@@ -316,7 +327,7 @@ impl Bot {
           &speedometer,
           &plugins,
           &reader_tx,
-          &storage,
+          Arc::clone(&storage),
           protocol_version,
           coonnection_timeout,
           &proxy,
@@ -356,7 +367,7 @@ impl Bot {
     speedometer: &Option<Arc<Speedometer>>,
     plugins: &BotPlugins,
     reader_tx: &PacketReader,
-    storage: &Arc<RwLock<Storage>>,
+    storage: Arc<Storage>,
     protocol_version: i32,
     coonnection_timeout: u64,
     proxy: &Arc<RwLock<Option<Proxy>>>,
@@ -577,76 +588,56 @@ impl Bot {
           }
         }
         ClientsidePlayPacket::SpawnEntity(p) => {
-          capture_storage(&storage, async |stor| {
-            stor.add_entity(
-              p.entity_id,
-              Entity {
-                entity_type: p.entity_type,
-                entity_uuid: p.entity_uuid,
-                position: p.position,
-                rotation: Rotation::from_angle(p.yaw_angle, p.pitch_angle),
-                velocity: p.velocity.to_vector3(),
-                ..Default::default()
-              },
-            );
-          })
-          .await;
+          let entity = Entity {
+            entity_type: p.entity_type,
+            entity_uuid: p.entity_uuid,
+            position: p.position,
+            rotation: Rotation::from_angle(p.yaw_angle, p.pitch_angle),
+            velocity: p.velocity.to_vector3(),
+            ..Default::default()
+          };
+
+          storage.add_entity(p.entity_id, entity).await;
         }
         ClientsidePlayPacket::RemoveEntities(p) => {
-          capture_storage(&storage, async |stor| {
-            for entity_id in p.entities {
-              stor.remove_entity(&entity_id);
-            }
-          })
-          .await;
+          storage.capture_entities(async |entities| {
+            p.entities.iter().for_each(|entity_id| { 
+              entities.remove(entity_id);
+            });
+          }).await;
         }
         ClientsidePlayPacket::EntityPositionSync(p) => {
-          capture_storage(&storage, async |stor| {
-            if let Some(entity) = stor.get_entity_mut(&p.entity_id) {
-              entity.position = p.position;
-              entity.rotation = p.rotation;
-              entity.velocity = p.velocity;
-              entity.on_ground = p.on_ground;
-            }
-          })
-          .await;
+          storage.capture_entity(&p.entity_id, async |entity| {
+            entity.position = p.position;
+            entity.rotation = p.rotation;
+            entity.velocity = p.velocity;
+            entity.on_ground = p.on_ground;
+          }).await;
         }
         ClientsidePlayPacket::UpdateEntityPos(p) => {
-          capture_storage(&storage, async |stor| {
-            if let Some(entity) = stor.get_entity_mut(&p.entity_id) {
-              // entity.position.with_delta(p.delta_x, p.delta_y, p.delta_z);
-              entity.on_ground = p.on_ground;
-            }
-          })
-          .await;
+          storage.capture_entity(&p.entity_id, async |entity| {
+            // entity.position.with_delta(p.delta_x, p.delta_y, p.delta_z);
+            entity.on_ground = p.on_ground;
+          }).await;
         }
         ClientsidePlayPacket::UpdateEntityRot(p) => {
-          capture_storage(&storage, async |stor| {
-            if let Some(entity) = stor.get_entity_mut(&p.entity_id) {
-              entity.rotation = Rotation::from_angle(p.yaw_angle, p.pitch_angle);
-              entity.on_ground = p.on_ground;
-            }
-          })
-          .await;
+          storage.capture_entity(&p.entity_id, async |entity| {
+            entity.rotation = Rotation::from_angle(p.yaw_angle, p.pitch_angle);
+            entity.on_ground = p.on_ground;
+          }).await;
         }
         ClientsidePlayPacket::UpdateEntityPosRot(p) => {
-          capture_storage(&storage, async |stor| {
-            if let Some(entity) = stor.get_entity_mut(&p.entity_id) {
-              // entity.position.with_delta(p.delta_x, p.delta_y, p.delta_z);
-              entity.rotation = Rotation::from_angle(p.yaw_angle, p.pitch_angle);
-              entity.on_ground = p.on_ground;
-            }
-          })
-          .await;
+          storage.capture_entity(&p.entity_id, async |entity| {
+            // entity.position.with_delta(p.delta_x, p.delta_y, p.delta_z);
+            entity.rotation = Rotation::from_angle(p.yaw_angle, p.pitch_angle);
+            entity.on_ground = p.on_ground;
+          }).await;
         }
         ClientsidePlayPacket::SetEntityVelocity(p) => {
-          capture_storage(&storage, async |stor| {
-            if let Some(entity) = stor.get_entity_mut(&p.entity_id) {
-              entity.position.with_velocity(p.velocity.to_vector3());
-              entity.velocity = Vector3::from_lp_vector3(p.velocity);
-            }
-          })
-          .await;
+          storage.capture_entity(&p.entity_id, async |entity| {
+            entity.position.with_velocity(p.velocity.to_vector3());
+            entity.velocity = Vector3::from_lp_vector3(p.velocity);
+          }).await;
         }
         ClientsidePlayPacket::KeepAlive(p) => {
           capture_connection(&connection, async |conn| {
@@ -799,11 +790,11 @@ impl Bot {
 
   /// Метод получения опциональных сущностей из хранилища
   pub fn try_get_entities(&self) -> Option<HashMap<i32, Entity>> {
-    match self.storage.try_read() {
+    match self.storage.entities.try_read() {
       Ok(g) => {
-        let mut entities = HashMap::with_capacity(g.entities.len());
+        let mut entities = HashMap::with_capacity(g.len());
 
-        for (entity_id, entity) in &g.entities {
+        for (entity_id, entity) in &*g {
           entities.insert(*entity_id, entity.clone());
         }
 
@@ -833,10 +824,10 @@ impl Bot {
 
   /// Метод получения всех сущностей из хранилища
   pub async fn get_entities(&self) -> HashMap<i32, Entity> {
-    let guard = self.storage.read().await;
-    let mut entities = HashMap::with_capacity(guard.entities.len());
+    let guard = self.storage.entities.read().await;
+    let mut entities = HashMap::with_capacity(guard.len());
 
-    for (entity_id, entity) in &guard.entities {
+    for (entity_id, entity) in &*guard {
       entities.insert(*entity_id, entity.clone());
     }
 
@@ -858,7 +849,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_packet_handling() -> io::Result<()> {
-    let mut bot = Bot::create("nurtex_bot").set_protocol_version(773);
+    let mut bot = Bot::create("nurtex_bot");
 
     bot.connect("localhost", 25565);
 
@@ -889,8 +880,7 @@ mod tests {
           respawn_delay: 2000,
         },
         ..Default::default()
-      })
-      .set_protocol_version(773);
+      });
 
     bot.connect("localhost", 25565);
     bot.wait_handle().await
@@ -906,8 +896,7 @@ mod tests {
           max_attempts: 3,
         },
         ..Default::default()
-      })
-      .set_protocol_version(773);
+      });
 
     bot.connect("localhost", 25565);
 
@@ -923,7 +912,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_storage() -> io::Result<()> {
+  async fn test_entity_storage() -> io::Result<()> {
     let mut bot = Bot::create("nurtex_bot");
 
     bot.connect("localhost", 25565);

@@ -69,7 +69,7 @@ pub struct Swarm {
   handles: Vec<JoinHandle<core::result::Result<(), std::io::Error>>>,
 
   /// Общее хранилище данных
-  shared_storage: Arc<RwLock<Storage>>,
+  shared_storage: Arc<Storage>,
 }
 
 impl Swarm {
@@ -80,7 +80,7 @@ impl Swarm {
       target_server: Arc::new(RwLock::new(TargetServer::default())),
       join_delay: Arc::new(JoinDelay::fixed(1000)),
       handles: Vec::new(),
-      shared_storage: Arc::new(RwLock::new(Storage::null())),
+      shared_storage: Arc::new(Storage::null()),
     }
   }
 
@@ -91,12 +91,12 @@ impl Swarm {
       target_server: Arc::new(RwLock::new(TargetServer::default())),
       join_delay: Arc::new(JoinDelay::fixed(1000)),
       handles: Vec::with_capacity(capacity),
-      shared_storage: Arc::new(RwLock::new(Storage::null())),
+      shared_storage: Arc::new(Storage::null()),
     }
   }
 
   /// Метод установки общего хранилища
-  pub fn set_shared_storage(mut self, storage: Arc<RwLock<Storage>>) -> Self {
+  pub fn set_shared_storage(mut self, storage: Arc<Storage>) -> Self {
     self.shared_storage = storage;
     self
   }
@@ -128,7 +128,7 @@ impl Swarm {
   }
 
   /// Метод получения общего хранилища
-  pub fn get_shared_storage(&self) -> Arc<RwLock<Storage>> {
+  pub fn get_shared_storage(&self) -> Arc<Storage> {
     Arc::clone(&self.shared_storage)
   }
 
@@ -320,7 +320,7 @@ impl Swarm {
 
     self.handles.clear();
     self.bots.clear();
-    self.shared_storage.write().await.clear();
+    self.shared_storage.clear().await;
 
     Ok(())
   }
@@ -431,8 +431,7 @@ mod tests {
       let storage = swarm.get_shared_storage();
 
       let entities = {
-        let guard = storage.read().await;
-        guard.entities.clone()
+        storage.entities.read().await.clone()
       };
 
       println!("Сущности: {:?}", entities);

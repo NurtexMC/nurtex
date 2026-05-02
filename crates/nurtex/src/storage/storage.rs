@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use hashbrown::HashMap;
+use tokio::sync::RwLock;
 
 use crate::world::Entity;
 
@@ -6,37 +9,58 @@ use crate::world::Entity;
 #[derive(Debug, Clone)]
 pub struct Storage {
   /// Список всех сущностей
-  pub entities: HashMap<i32, Entity>,
+  pub entities: Arc<RwLock<HashMap<i32, Entity>>>,
 }
 
 impl Storage {
   /// Метод создания пустого хранилища
   pub fn null() -> Self {
-    Self { entities: HashMap::new() }
+    Self { 
+      entities: Arc::new(RwLock::new(HashMap::new()))
+    }
   }
 
   /// Метод добавления сущности в хранилище
-  pub fn add_entity(&mut self, id: i32, entity: Entity) {
-    self.entities.insert(id, entity);
-  }
-
-  /// Метод получения ссылки на сущность
-  pub fn get_entity(&self, id: &i32) -> Option<&Entity> {
-    self.entities.get(id)
-  }
-
-  /// Метод получения мутабельной ссылки на сущность
-  pub fn get_entity_mut(&mut self, id: &i32) -> Option<&mut Entity> {
-    self.entities.get_mut(id)
+  pub async fn add_entity(&self, id: i32, entity: Entity) {
+    let mut guard = self.entities.write().await;
+    guard.insert(id, entity);
   }
 
   /// Метод удаления сущности из хранилища
-  pub fn remove_entity(&mut self, id: &i32) {
-    self.entities.remove(id);
+  pub async fn remove_entity(&self, id: &i32) {
+    let mut guard = self.entities.write().await;
+    guard.remove(id);
+  }
+
+  /// Метод получения клона сущности
+  pub async fn get_entity(&self, id: &i32) -> Option<Entity> {
+    let guard = self.entities.read().await;
+    guard.get(id).cloned()
+  }
+
+  /// Функция временного захвата сущности
+  pub async fn capture_entity<F>(&self, id: &i32, f: F)
+  where
+    F: AsyncFnOnce(&mut Entity),
+  {
+    let mut guard = self.entities.write().await;
+
+    if let Some(entity) = guard.get_mut(id) {
+      f(entity).await;
+    }
+  }
+
+  /// Функция временного захвата списка сущностей
+  pub async fn capture_entities<F>(&self, f: F)
+  where
+    F: AsyncFnOnce(&mut HashMap<i32, Entity>),
+  {
+    let mut guard = self.entities.write().await;
+    f(&mut *guard).await;
   }
 
   /// Метод очитски хранилища
-  pub fn clear(&mut self) {
-    self.entities.clear();
+  pub async fn clear(&self) {
+    self.entities.write().await.clear();
   }
 }
