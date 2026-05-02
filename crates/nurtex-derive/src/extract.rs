@@ -6,25 +6,12 @@ pub fn extract_packet_field_feature(f: &syn::Field) -> Option<String> {
 
   for attr in &f.attrs {
     match &attr.meta {
-      // #[name]
       Meta::Path(p) => {
         if let Some(ident) = p.get_ident() {
           feature = Some(ident.to_string());
         }
       }
-      _ => {} /*
-              // #[name = "value"]
-              Meta::NameValue(nv) => {
-                if let syn::Expr::Lit(expr) = &nv.value {
-                  match &expr.lit {
-                    syn::Lit::Str(lit_str) => Some(lit_str.value()),
-                    _ => None,
-                  }
-                } else {
-                  None
-                }
-              }
-              */
+      _ => {}
     }
   }
 
