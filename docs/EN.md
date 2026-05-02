@@ -104,15 +104,17 @@ use nurtex::{Bot, JoinDelay, Swarm};
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
   // Create our swarm
-  let mut swarm = Swarm::create();
+  let mut swarm = Swarm::create()
+    .set_join_delay(JoinDelay::fixed(500))
+    .bind("localhost", 25565);
 
   // Create 5 bots and add them to the swarm
   for i in 0..5 {
     swarm.add_bot(Bot::create(format!("nurtex_bot_{}", i)));
   }
 
-  // Connect the swarm to the server with a 500ms connection interval
-  swarm.launch("localhost", 25565, JoinDelay::fixed(500)).await;
+  // Launch a swarm
+  swarm.launch().await;
 
   // Wait for handles to complete
   swarm.wait_handles().await;
@@ -189,15 +191,17 @@ use nurtex::{Bot, JoinDelay, Swarm};
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
   // Create a swarm
-  let mut swarm = Swarm::create();
+  let mut swarm = Swarm::create()
+    .set_join_delay(JoinDelay::progressive_linear(500, 4000))
+    .bind("localhost", 25565);
 
   // Add 6 bots to the swarm
   for i in 0..6 {
     swarm.add_bot(Bot::create(format!("nurtex_bot_{}", i)));
   }
 
-  // Launch a swarm with progressive linear delay
-  swarm.launch("localhost", 25565, JoinDelay::progressive_linear(500, 4000)).await;
+  // Launch a swarm
+  swarm.launch().await;
 
   // Wait for handles to complete
   swarm.wait_handles().await;
@@ -240,8 +244,10 @@ async fn main() -> std::io::Result<()> {
   // Create a speedometer
   let speedometer = Arc::new(Speedometer::new(100));
 
-  // Create a swarm with a speedometer
-  let mut swarm = Swarm::create_with_speedometer(Arc::clone(&speedometer));
+  // Create a swarm
+  let mut swarm = Swarm::create()
+    .set_join_delay(JoinDelay::regressive_linear(3000, 25))
+    .bind("localhost", 25565);
 
   // Add 20 bots to the swarm to see speed changes
   for i in 0..20 {
@@ -253,8 +259,8 @@ async fn main() -> std::io::Result<()> {
     swarm.add_bot(bot);
   }
 
-  // Launch bots on the server with regressive linear delay
-  swarm.quiet_launch("localhost", 25565, JoinDelay::regressive_linear(3000, 25));
+  // Launch a swarm
+  swarm.quiet_launch();
 
   // Subscribe to speedometer events
   let mut speedometer_rx = speedometer.subscribe();

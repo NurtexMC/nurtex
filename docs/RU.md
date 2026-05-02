@@ -104,15 +104,17 @@ use nurtex::{Bot, JoinDelay, Swarm};
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
   // Создаём наш рой
-  let mut swarm = Swarm::create();
+  let mut swarm = Swarm::create()
+    .set_join_delay(JoinDelay::fixed(500))
+    .bind("localhost", 25565);
 
-  // Создадим 5 ботов и добавим их в рой
+  // Создаём 5 ботов и добавляем их в рой
   for i in 0..5 {
     swarm.add_bot(Bot::create(format!("nurtex_bot_{}", i)));
   }
 
-  // Подключим рой к серверу с интервалом подключения в 500мс
-  swarm.launch("localhost", 25565, JoinDelay::fixed(500)).await;
+  // Запускаем рой
+  swarm.launch().await;
 
   // Ожидаем завершения хэндлов
   swarm.wait_handles().await;
@@ -190,15 +192,17 @@ use nurtex::{Bot, JoinDelay, Swarm};
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
   // Создаём рой
-  let mut swarm = Swarm::create();
+  let mut swarm = Swarm::create()
+    .set_join_delay(JoinDelay::progressive_linear(500, 4000))
+    .bind("localhost", 25565);
 
   // Добавляем 6 ботов в рой
   for i in 0..6 {
     swarm.add_bot(Bot::create(format!("nurtex_bot_{}", i)));
   }
 
-  // Запускаем рой с прогрессивной линейной задержкой
-  swarm.launch("localhost", 25565, JoinDelay::progressive_linear(500, 4000)).await;
+  // Запускаем рой
+  swarm.launch().await;
 
   // Ожидаем завершения хэндлов
   swarm.wait_handles().await;
@@ -241,8 +245,10 @@ async fn main() -> std::io::Result<()> {
   // Создаём спидометр
   let speedometer = Arc::new(Speedometer::new(100));
 
-  // Создаём рой со спидометром
-  let mut swarm = Swarm::create_with_speedometer(Arc::clone(&speedometer));
+  // Создаём рой
+  let mut swarm = Swarm::create()
+    .set_join_delay(JoinDelay::regressive_linear(3000, 25))
+    .bind("localhost", 25565);
 
   // Добавляем 20 ботов в рой чтобы увидеть изменения скорости
   for i in 0..20 {
@@ -255,7 +261,7 @@ async fn main() -> std::io::Result<()> {
   }
 
   // Запускаем ботов на сервер с регрессивной линейной задержкой
-  swarm.quiet_launch("localhost", 25565, JoinDelay::regressive_linear(3000, 25));
+  swarm.quiet_launch();
 
   // Подписываемся на события спидометра
   let mut speedometer_rx = speedometer.subscribe();
