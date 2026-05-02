@@ -21,7 +21,7 @@ pub struct ClientsideCookieRequest {
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsidePluginMessage {
   pub channel: String,
-  #[packet(vec_end)]
+  #[vec_end]
   pub data: Vec<u8>,
 }
 
@@ -39,7 +39,7 @@ pub struct ClientsideResetChat;
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideRegistryData {
   pub registry_id: String,
-  #[packet(vec_end)]
+  #[vec_end]
   pub raw_data: Vec<u8>,
 }
 
@@ -60,14 +60,14 @@ pub struct ClientsideAddResourcePack {
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideStoreCookie {
   pub key: String,
-  #[packet(vec_end)]
+  #[vec_end]
   pub payload: Vec<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideTransfer {
   pub server_host: String,
-  #[packet(varint)]
+  #[varint]
   pub server_port: i32,
 }
 
@@ -123,7 +123,7 @@ pub struct ServersidePong {
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersidePluginMessage {
   pub channel: String,
-  #[packet(vec_end)]
+  #[vec_end]
   pub data: Vec<u8>,
 }
 

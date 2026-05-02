@@ -1,4 +1,5 @@
-use nurtex_codec::{Buffer, VarInt};
+use nurtex_codec::Buffer;
+use nurtex_codec::types::variable::VarI32;
 
 /// Статус видимости партиклов
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -10,7 +11,7 @@ pub enum ParticleStatus {
 
 impl Buffer for ParticleStatus {
   fn read_buf(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self> {
-    let id = i32::read_varint(buffer)?;
+    let id = i32::read_var(buffer)?;
 
     Some(match id {
       0 => Self::All,
@@ -27,6 +28,6 @@ impl Buffer for ParticleStatus {
       Self::Minimal => 2,
     };
 
-    id.write_varint(buffer)
+    id.write_var(buffer)
   }
 }

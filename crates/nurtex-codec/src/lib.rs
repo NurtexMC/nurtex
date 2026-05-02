@@ -1,8 +1,9 @@
+pub mod types;
+
 mod buffer;
-mod types;
-mod varint;
-mod varlong;
+mod constants;
+mod read;
 
 pub use buffer::*;
-pub use varint::VarInt;
-pub use varlong::VarLong;
+pub use constants::*;
+pub use read::*;

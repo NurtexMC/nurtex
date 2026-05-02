@@ -1,6 +1,5 @@
-use std::io::{self, Cursor, Write};
-
-use nurtex_codec::{Buffer, VarInt};
+use nurtex_codec::Buffer;
+use nurtex_codec::types::variable::VarI32;
 
 /// Структура дополнительной информации о сообщении
 #[derive(Debug, Clone, PartialEq)]
@@ -21,9 +20,9 @@ impl Default for AdditionalMessageInfo {
 }
 
 impl Buffer for AdditionalMessageInfo {
-  fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+  fn read_buf(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self> {
     Some(Self {
-      message_count: i32::read_varint(buffer)?,
+      message_count: i32::read_var(buffer)?,
       acknowledged: {
         let mut array = [0u8; 3];
         for byte in &mut array {
@@ -35,8 +34,8 @@ impl Buffer for AdditionalMessageInfo {
     })
   }
 
-  fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
-    self.message_count.write_varint(buffer)?;
+  fn write_buf(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()> {
+    self.message_count.write_var(buffer)?;
 
     for byte in &self.acknowledged {
       byte.write_buf(buffer)?;

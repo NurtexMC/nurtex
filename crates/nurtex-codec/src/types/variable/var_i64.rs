@@ -1,17 +1,19 @@
 use crate::{CONTINUE_BIT, SEGMENT_BITS, read_byte};
-use std::io::{self, Cursor, Write};
 
-/// Обёртка для типа `VarLong`
-pub trait VarLong {
-  /// Метод чтения `VarLong` из буффера
-  fn read_varlong(buffer: &mut Cursor<&[u8]>) -> Option<i64>;
+/// Трейт для типа `i64` с варьируемой длинной (в протоколе как `VarLong`)
+pub trait VarI64
+where
+  Self: Sized,
+{
+  /// Метод чтения `VarI64` из буффера
+  fn read_var(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self>;
 
-  /// Метод записи `VarLong` в буффер
-  fn write_varlong(&self, buffer: &mut impl Write) -> io::Result<()>;
+  /// Метод записи `VarI64` в буффер
+  fn write_var(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()>;
 }
 
-impl VarLong for i64 {
-  fn read_varlong(buffer: &mut Cursor<&[u8]>) -> Option<i64> {
+impl VarI64 for i64 {
+  fn read_var(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self> {
     let mut value = 0i64;
     let mut position = 0u32;
 
@@ -33,7 +35,7 @@ impl VarLong for i64 {
     Some(value)
   }
 
-  fn write_varlong(&self, buffer: &mut impl Write) -> io::Result<()> {
+  fn write_var(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()> {
     let mut array = [0];
     let mut value = *self;
 

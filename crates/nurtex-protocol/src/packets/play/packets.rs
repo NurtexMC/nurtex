@@ -21,20 +21,20 @@ pub struct ClientsidePingResponse {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideDamageEvent {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
-  #[packet(varint)]
+  #[varint]
   pub source_type_id: i32,
-  #[packet(varint)]
+  #[varint]
   pub source_cause_id: i32,
-  #[packet(varint)]
+  #[varint]
   pub source_direct_id: i32,
   pub source_position: Vector3,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideUpdateEntityPos {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
   pub delta_x: i16,
   pub delta_y: i16,
@@ -44,7 +44,7 @@ pub struct ClientsideUpdateEntityPos {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideUpdateEntityRot {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
   pub yaw_angle: i8,
   pub pitch_angle: i8,
@@ -53,7 +53,7 @@ pub struct ClientsideUpdateEntityRot {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideUpdateEntityPosRot {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
   pub delta_x: i16,
   pub delta_y: i16,
@@ -65,7 +65,7 @@ pub struct ClientsideUpdateEntityPosRot {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsidePlayerPosition {
-  #[packet(varlong)]
+  #[varlong]
   pub teleport_id: i64,
   pub position: Vector3,
   pub velocity: Vector3,
@@ -83,26 +83,24 @@ pub struct ClientsidePlayerRotation {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsidePlayerLookAt {
-  #[packet(varint)]
+  #[varint]
   pub gaze: i32,
   pub target_pos: Vector3,
   pub is_entity: bool,
-  #[packet(varint)]
   pub entity_id: Option<i32>,
-  #[packet(varint)]
   pub entity_gaze: Option<i32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsidePlayerCombatKill {
-  #[packet(varint)]
+  #[varint]
   pub player_id: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSetHealth {
   pub health: f32,
-  #[packet(varint)]
+  #[varint]
   pub food: i32,
   pub food_saturation: f32,
 }
@@ -114,38 +112,38 @@ pub struct ClientsideSetExperience {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSetPassengers {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
-  #[packet(vec_varint)]
+  #[vec_varint]
   pub passengers: Vec<i32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSetEntityVelocity {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
   pub velocity: LpVector3,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSpawnEntity {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
   pub entity_uuid: Uuid,
-  #[packet(varint)]
+  #[varint]
   pub entity_type: i32,
   pub position: Vector3,
   pub velocity: LpVector3,
   pub pitch_angle: i8,
   pub yaw_angle: i8,
   pub head_yaw_angle: i8,
-  #[packet(varint)]
+  #[varint]
   pub data: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideRemoveEntities {
-  #[packet(vec_varint)]
+  #[vec_varint]
   pub entities: Vec<i32>,
 }
 
@@ -159,16 +157,16 @@ pub struct ClientsideDisconnect {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsidePlayerChat {
-  #[packet(varint)]
+  #[varint]
   pub global_index: i32,
   pub sender_uuid: Uuid,
-  #[packet(varint)]
+  #[varint]
   pub index: i32,
   pub message_signature: Option<Vec<u8>>,
   pub message: String,
   pub timestamp: i64,
   pub salt: i64,
-  #[packet(varint)]
+  #[varint]
   pub message_id: i32,
   pub signature: Option<Vec<u8>>,
 }
@@ -182,47 +180,47 @@ pub struct ClientsideSystemChat {
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideTransfer {
   pub server_host: String,
-  #[packet(varint)]
+  #[varint]
   pub server_port: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSetHeldItem {
-  #[packet(varint)]
+  #[varint]
   pub slot: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSetEntityLink {
-  #[packet(varint)]
+  #[varint]
   pub attached_entity_id: i32,
-  #[packet(varint)]
+  #[varint]
   pub holding_entity_id: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideChunkCacheRadius {
-  #[packet(varint)]
+  #[varint]
   pub view_distance: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideChunkCacheCenter {
-  #[packet(varint)]
+  #[varint]
   pub chunk_x: i32,
-  #[packet(varint)]
+  #[varint]
   pub chunk_z: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSetCamera {
-  #[packet(varint)]
+  #[varint]
   pub camera_id: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideRotateHead {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
   pub head_yaw: i8,
 }
@@ -230,7 +228,7 @@ pub struct ClientsideRotateHead {
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideSectionBlocksUpdate {
   pub chunk_section_position: i64,
-  #[packet(vec_varlong)]
+  #[vec_varlong]
   pub head_yaw: Vec<i64>,
 }
 
@@ -249,17 +247,17 @@ pub struct ClientsideRemoveResourcePack {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideRemoveEntityEffect {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
-  #[packet(varint)]
+  #[varint]
   pub effect_id: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideOpenContainer {
-  #[packet(varint)]
+  #[varint]
   pub window_id: i32,
-  #[packet(varint)]
+  #[varint]
   pub window_type: i32,
 }
 
@@ -274,15 +272,15 @@ pub struct ClientsideLogin {
   pub entity_id: i32,
   pub is_hardcore: bool,
   pub dimension_names: Vec<String>,
-  #[packet(varint)]
+  #[varint]
   pub max_players: i32,
-  #[packet(varint)]
+  #[varint]
   pub view_distance: i32,
-  #[packet(varint)]
+  #[varint]
   pub simulation_distance: i32,
   pub reduced_debug_info: bool,
   pub enable_respawn_screen: bool,
-  #[packet(varint)]
+  #[varint]
   pub dimension_type: i32,
   pub dimension_name: String,
   pub hashed_seed: i64,
@@ -290,7 +288,7 @@ pub struct ClientsideLogin {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideEntityPositionSync {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
   pub position: Vector3,
   pub velocity: Vector3,
@@ -304,7 +302,7 @@ pub struct ClientsideExplosion {
   pub radius: f32,
   pub block_count: i32,
   pub player_delta_velocity: Option<Vector3>,
-  #[packet(varint)]
+  #[varint]
   pub explosion_particle_id: i32,
 }
 
@@ -322,7 +320,7 @@ pub struct ClientsideGameEvent {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideClearChat {
-  #[packet(varint)]
+  #[varint]
   pub message_id: i32,
   pub signature: Option<Vec<u8>>,
 }
@@ -338,15 +336,15 @@ pub struct ClientsideLoadChunkWithLight {
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideBlockUpdate {
   pub block_pos: BlockPosition,
-  #[packet(varint)]
+  #[varint]
   pub block_state: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideContainerSetContent {
-  #[packet(varint)]
+  #[varint]
   pub container_id: i32,
-  #[packet(varint)]
+  #[varint]
   pub state_id: i32,
   pub items: Vec<Item>,
   pub carried_item: Item,
@@ -354,9 +352,9 @@ pub struct ClientsideContainerSetContent {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideContainerSetSlot {
-  #[packet(varint)]
+  #[varint]
   pub container_id: i32,
-  #[packet(varint)]
+  #[varint]
   pub state_id: i32,
   pub slot: i16,
   pub item: Item,
@@ -367,32 +365,32 @@ pub struct ClientsideChunkBatchStart;
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideChunkBatchFinished {
-  #[packet(varint)]
+  #[varint]
   pub batch_size: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideLightUpdate {
-  #[packet(varint)]
+  #[varint]
   pub chunk_x: i32,
-  #[packet(varint)]
+  #[varint]
   pub chunk_z: i32,
   pub light_data: Vec<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideCloseContainer {
-  #[packet(varint)]
+  #[varint]
   pub container_id: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsideContainerSetData {
-  #[packet(varint)]
+  #[varint]
   pub container_id: i32,
-  #[packet(varint)]
+  #[varint]
   pub property: i32,
-  #[packet(varint)]
+  #[varint]
   pub value: i32,
 }
 
@@ -408,7 +406,7 @@ pub struct ServersidePingRequest {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersideAcceptTeleportation {
-  #[packet(varlong)]
+  #[varlong]
   pub teleport_id: i64,
 }
 
@@ -420,7 +418,7 @@ pub struct ServersideSwingArm {
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersideUseItem {
   pub hand: RelativeHand,
-  #[packet(varint)]
+  #[varint]
   pub sequence: i32,
   pub rotation: Rotation,
 }
@@ -475,7 +473,7 @@ pub struct ServersideSetHeldItem {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersideInteract {
-  #[packet(varint)]
+  #[varint]
   pub entity: i32,
   pub interact_type: InteractType,
   pub target_x: Option<f32>,
@@ -490,16 +488,16 @@ pub struct ServersidePlayerAction {
   pub action: PlayerAction,
   pub block_pos: BlockPosition,
   pub face: Face,
-  #[packet(varint)]
+  #[varint]
   pub sequence: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersidePlayerCommand {
-  #[packet(varint)]
+  #[varint]
   pub entity_id: i32,
   pub command: PlayerCommand,
-  #[packet(varint)]
+  #[varint]
   pub jump_boost: i32,
 }
 
@@ -511,20 +509,20 @@ pub struct ServersideResourcePackResponse {
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersideContainerClick {
-  #[packet(varint)]
+  #[varint]
   pub container_id: i32,
-  #[packet(varint)]
+  #[varint]
   pub state_id: i32,
   pub slot: i16,
   pub button: i8,
-  #[packet(varint)]
+  #[varint]
   pub mode: i32,
   pub clicked_item: Item,
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ServersideContainerClose {
-  #[packet(varint)]
+  #[varint]
   pub container_id: i32,
 }
 

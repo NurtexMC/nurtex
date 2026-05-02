@@ -15,8 +15,8 @@ pub struct Storage {
 impl Storage {
   /// Метод создания пустого хранилища
   pub fn null() -> Self {
-    Self { 
-      entities: Arc::new(RwLock::new(HashMap::new()))
+    Self {
+      entities: Arc::new(RwLock::new(HashMap::new())),
     }
   }
 

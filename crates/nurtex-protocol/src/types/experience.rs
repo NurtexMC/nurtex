@@ -1,8 +1,5 @@
-use nurtex_codec::VarInt;
-
-use std::io::{self, Cursor, Write};
-
 use nurtex_codec::Buffer;
+use nurtex_codec::types::variable::VarI32;
 
 /// Структура опыта
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -19,18 +16,18 @@ impl Default for Experience {
 }
 
 impl Buffer for Experience {
-  fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+  fn read_buf(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self> {
     Some(Self {
       bar: f32::read_buf(buffer)?,
-      level: i32::read_varint(buffer)?,
-      total: i32::read_varint(buffer)?,
+      level: i32::read_var(buffer)?,
+      total: i32::read_var(buffer)?,
     })
   }
 
-  fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
+  fn write_buf(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()> {
     self.bar.write_buf(buffer)?;
-    self.level.write_varint(buffer)?;
-    self.total.write_varint(buffer)?;
+    self.level.write_var(buffer)?;
+    self.total.write_var(buffer)?;
     Ok(())
   }
 }

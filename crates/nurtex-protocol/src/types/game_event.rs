@@ -1,6 +1,4 @@
-use std::io::{self, Cursor, Write};
-
-use nurtex_codec::{Buffer, VarInt};
+use nurtex_codec::Buffer;
 
 /// Событие игры
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -22,7 +20,7 @@ pub enum GameEvent {
 }
 
 impl Buffer for GameEvent {
-  fn read_buf(buffer: &mut Cursor<&[u8]>) -> Option<Self> {
+  fn read_buf(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self> {
     let id = u8::read_buf(buffer)?;
 
     match id {
@@ -44,7 +42,7 @@ impl Buffer for GameEvent {
     }
   }
 
-  fn write_buf(&self, buffer: &mut impl Write) -> io::Result<()> {
+  fn write_buf(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()> {
     let id = match self {
       Self::NoRespawnBlockAvailable => 0,
       Self::BeginRaining => 1,
@@ -62,7 +60,7 @@ impl Buffer for GameEvent {
       Self::StartWaitingForLevelChunks => 13,
     };
 
-    id.write_varint(buffer)?;
+    (id as u8).write_buf(buffer)?;
 
     Ok(())
   }

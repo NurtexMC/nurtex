@@ -1,15 +1,16 @@
+use std::fmt::Debug;
+use std::io::Read;
+
 use flate2::Compression;
 use flate2::bufread::ZlibEncoder;
-use nurtex_codec::VarInt;
+use nurtex_codec::types::variable::VarI32;
 use nurtex_encrypt::AesEncryptor;
-use std::fmt::Debug;
-use std::io::{self, Read};
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 use crate::ProtocolPacket;
 
 /// Функция записи сетевого пакета
-pub async fn write_packet<P, W>(packet: &P, stream: &mut W, compression_threshold: Option<u32>, cipher: &mut Option<AesEncryptor>) -> io::Result<()>
+pub async fn write_packet<P, W>(packet: &P, stream: &mut W, compression_threshold: Option<u32>, cipher: &mut Option<AesEncryptor>) -> std::io::Result<()>
 where
   P: ProtocolPacket + Debug,
   W: AsyncWrite + Unpin + Send,
@@ -24,7 +25,7 @@ where
   P: ProtocolPacket + Debug,
 {
   let mut buf = Vec::new();
-  (packet.id() as i32).write_varint(&mut buf).ok()?;
+  (packet.id() as i32).write_var(&mut buf).ok()?;
   packet.write(&mut buf).ok()?;
 
   if buf.len() > 8388608 as usize {
@@ -35,7 +36,7 @@ where
 }
 
 /// Функция записи сырого пакета
-pub async fn write_raw_packet<W>(raw_packet: &[u8], stream: &mut W, compression_threshold: Option<u32>, cipher: &mut Option<AesEncryptor>) -> io::Result<()>
+pub async fn write_raw_packet<W>(raw_packet: &[u8], stream: &mut W, compression_threshold: Option<u32>, cipher: &mut Option<AesEncryptor>) -> std::io::Result<()>
 where
   W: AsyncWrite + Unpin + Send,
 {
@@ -67,8 +68,8 @@ pub fn compression_encoder(data: &[u8], compression_threshold: u32) -> Option<Ve
   if n < compression_threshold as usize {
     let mut buf = Vec::new();
 
-    0i32.write_varint(&mut buf).ok()?;
-    io::Write::write_all(&mut buf, data).ok()?;
+    0i32.write_var(&mut buf).ok()?;
+    std::io::Write::write_all(&mut buf, data).ok()?;
 
     Some(buf)
   } else {
@@ -77,7 +78,7 @@ pub fn compression_encoder(data: &[u8], compression_threshold: u32) -> Option<Ve
     deflater.read_to_end(&mut compressed_data).ok()?;
 
     let mut len_prepended_compressed_data = Vec::new();
-    (data.len() as i32).write_varint(&mut len_prepended_compressed_data).ok()?;
+    (data.len() as i32).write_var(&mut len_prepended_compressed_data).ok()?;
     len_prepended_compressed_data.append(&mut compressed_data);
 
     Some(len_prepended_compressed_data)
@@ -88,7 +89,7 @@ pub fn compression_encoder(data: &[u8], compression_threshold: u32) -> Option<Ve
 fn frame_prepender(mut data: Vec<u8>) -> Option<Vec<u8>> {
   let mut buf = Vec::new();
 
-  (data.len() as i32).write_varint(&mut buf).ok()?;
+  (data.len() as i32).write_var(&mut buf).ok()?;
   buf.append(&mut data);
 
   Some(buf)

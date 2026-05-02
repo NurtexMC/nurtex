@@ -1,5 +1,7 @@
-use nurtex_codec::{Buffer, VarInt};
+use nurtex_codec::Buffer;
+use nurtex_codec::types::variable::VarI32;
 
+/// Ссылка сервера
 #[derive(Clone, Debug, PartialEq)]
 pub struct ServerLink {
   pub label: ServerLinkLabel,
@@ -19,7 +21,7 @@ impl Buffer for ServerLink {
         let is_built_in = bool::read_buf(buffer)?;
 
         if is_built_in {
-          ServerLinkLabel::BuiltIn(i32::read_varint(buffer)?)
+          ServerLinkLabel::BuiltIn(i32::read_var(buffer)?)
         } else {
           ServerLinkLabel::Custom(String::read_buf(buffer)?)
         }
@@ -32,7 +34,7 @@ impl Buffer for ServerLink {
     match &self.label {
       ServerLinkLabel::BuiltIn(id) => {
         true.write_buf(buffer)?;
-        id.write_varint(buffer)?;
+        id.write_var(buffer)?;
       }
       ServerLinkLabel::Custom(text) => {
         false.write_buf(buffer)?;

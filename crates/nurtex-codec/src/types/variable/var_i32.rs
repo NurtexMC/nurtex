@@ -1,17 +1,19 @@
 use crate::{CONTINUE_BIT, SEGMENT_BITS, read_byte};
-use std::io::{self, Cursor, Write};
 
-/// Обёртка для типа `VarInt`
-pub trait VarInt {
-  /// Метод чтения `VarInt` из буффера
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<i32>;
+/// Трейт для типа `i32` с варьируемой длинной (в протоколе как `VarInt`)
+pub trait VarI32
+where
+  Self: Sized,
+{
+  /// Метод чтения `VarI32` из буффера
+  fn read_var(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self>;
 
-  /// Метод записи `VarInt` в буффер
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()>;
+  /// Метод записи `VarI32` в буффер
+  fn write_var(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()>;
 }
 
-impl VarInt for i32 {
-  fn read_varint(buffer: &mut Cursor<&[u8]>) -> Option<i32> {
+impl VarI32 for i32 {
+  fn read_var(buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self> {
     let mut value = 0i32;
     let mut position = 0u32;
 
@@ -33,7 +35,7 @@ impl VarInt for i32 {
     Some(value)
   }
 
-  fn write_varint(&self, buffer: &mut impl Write) -> io::Result<()> {
+  fn write_var(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()> {
     let mut array = [0];
     let mut value = *self;
 
