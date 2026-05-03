@@ -2,15 +2,71 @@ use std::sync::Arc;
 
 use tokio::task::JoinHandle;
 
-use crate::{Bot, Swarm};
+use crate::{Bot, JoinDelay, Swarm, bot::handlers::Handlers};
 
-/// Кластер роев из ботов
+/// Кластер роев (или же скопление роев).
+///
+/// Кластер позволяет запускать рои одновременно
+/// на нескольких различных серверах (мульти-таргет)
+/// и удобно управлять всеми роями / ботами в роях.
+///
+/// Кластер имеет архитектуру, похожую на архитектуру роя,
+/// но отличается тем, что **не хранит** данные о мире
+/// в едином месте, так как из-за того что на разных
+/// серверах разные миры - хранение общих данных о мире
+/// не будет иметь какого-то смысла и только усложнит работу.
+///
+/// ## Примеры
+///
+/// ```rust, ignore
+/// use nurtex::{Bot, Cluster, JoinDelay};
+/// use nurtex::bot::BotChatExt;
+///
+/// #[tokio::main]
+/// async fn main() -> std::io::Result<()> {
+///   // Создаём кластер
+///   let mut cluster = Cluster::create();
+///
+///   for s_ind in 0..3 {
+///     // Создаём список ботов
+///     let mut bots = Vec::new();
+///
+///     for b_ind in 0..2 {
+///       // Создаём бота и добавляем его в список
+///       bots.push(Bot::create(format!("nurtex_{}_{}", s_ind, b_ind)));
+///     }
+///
+///     // Добавляем рой в кластер
+///     cluster.add_swarm(bots, JoinDelay::fixed(1000), "localhost", 25565);
+///   }
+///
+///   // Запускаем кластер
+///   cluster.launch();
+///
+///   // Ждём немножко
+///   tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+///
+///   // Проходимся параллельно по всем ботам из всех роев
+///   cluster.for_each_bots_parallel(async |bot| {
+///     // Отправляем сообщение в чат и игнорируем возможные ошибки
+///     let _ = bot.chat_message(format!("Привет, я {}!", bot.username())).await;
+///   });
+///
+///   // Ожидаем заврещения всех хэндлов
+///   cluster.wait_finish().await
+/// }
+/// ```
+///
+/// Больше актуальных примеров: [смотреть](https://github.com/NurtexMC/nurtex/blob/main/crates/nurtex/examples)
 pub struct Cluster {
   /// Список роев
   swarms: Vec<Arc<Swarm>>,
 
   /// Список хэндлов
   handles: Vec<JoinHandle<()>>,
+
+  /// Общие обработчики событий
+  shared_handlers: Arc<Handlers>,
 }
 
 impl Cluster {
@@ -19,6 +75,7 @@ impl Cluster {
     Self {
       swarms: Vec::new(),
       handles: Vec::new(),
+      shared_handlers: Arc::new(Handlers::new()),
     }
   }
 
@@ -27,32 +84,46 @@ impl Cluster {
     Self {
       swarms: Vec::with_capacity(capacity),
       handles: Vec::with_capacity(capacity),
+      shared_handlers: Arc::new(Handlers::new()),
     }
   }
 
-  /// Метод добавления роя
-  pub fn add_swarm(&mut self, swarm: Swarm) {
-    self.swarms.push(Arc::new(swarm));
-  }
-
-  /// Метод добавления списка роев
-  pub fn add_swarms(&mut self, swarms: Vec<Swarm>) {
-    for swarm in swarms {
-      self.swarms.push(Arc::new(swarm));
-    }
-  }
-
-  /// Метод добавления роя (возвращает `Self`)
-  pub fn with_swarm(mut self, swarm: Swarm) -> Self {
-    self.swarms.push(Arc::new(swarm));
+  /// Метод установки обработчиков.
+  ///
+  /// **Важное примечание:** Данный метод нужно вызывать строго
+  /// до добавления роев, иначе рои, добавленные в кластер до
+  /// использования этого метода, **не будут** использовать обработчики
+  pub fn with_handlers(mut self, handlers: Handlers) -> Self {
+    self.shared_handlers = Arc::new(handlers);
     self
   }
 
-  /// Метод добавления списка роев (возвращает `Self`)
-  pub fn with_swarms(mut self, swarms: Vec<Swarm>) -> Self {
-    for swarm in swarms {
-      self.swarms.push(Arc::new(swarm));
+  /// Метод добавления роя
+  pub fn add_swarm(&mut self, bots: Vec<Bot>, join_delay: JoinDelay, target_host: impl Into<String>, target_port: u16) {
+    let mut swarm = Swarm::create()
+      .with_join_delay(join_delay)
+      .with_shared_handlers(Arc::clone(&self.shared_handlers))
+      .bind(target_host, target_port);
+
+    for bot in bots {
+      swarm.add_bot(bot);
     }
+
+    self.swarms.push(Arc::new(swarm));
+  }
+
+  /// Метод добавления роя (возвращает `Self`)
+  pub fn with_swarm(mut self, bots: Vec<Bot>, join_delay: JoinDelay, target_host: impl Into<String>, target_port: u16) -> Self {
+    let mut swarm = Swarm::create()
+      .with_join_delay(join_delay)
+      .with_shared_handlers(Arc::clone(&self.shared_handlers))
+      .bind(target_host, target_port);
+
+    for bot in bots {
+      swarm.add_bot(bot);
+    }
+
+    self.swarms.push(Arc::new(swarm));
 
     self
   }
@@ -188,20 +259,23 @@ impl Cluster {
 mod tests {
   use std::time::Duration;
 
-  use crate::{Bot, Cluster, JoinDelay, Swarm, bot::BotChatExt};
+  use crate::{
+    Bot, Cluster, JoinDelay,
+    bot::{BotChatExt, handlers::Handlers},
+  };
 
   #[tokio::test]
   async fn test_minimal_cluster() -> std::io::Result<()> {
     let mut cluster = Cluster::create();
 
     for si in 0..3 {
-      let mut swarm = Swarm::create().set_join_delay(JoinDelay::fixed(5000)).bind("localhost", 25565);
+      let mut bots = Vec::new();
 
       for bi in 0..2 {
-        swarm.add_bot(Bot::create(format!("nurtex_{}_{}", si, bi)));
+        bots.push(Bot::create(format!("nurtex_{}_{}", si, bi)));
       }
 
-      cluster.add_swarm(swarm);
+      cluster.add_swarm(bots, JoinDelay::fixed(5000), "localhost", 25565);
     }
 
     cluster.launch();
@@ -216,13 +290,13 @@ mod tests {
     let mut cluster = Cluster::create();
 
     for si in 0..3 {
-      let mut swarm = Swarm::create().set_join_delay(JoinDelay::fixed(2000)).bind("localhost", 25565);
+      let mut bots = Vec::new();
 
       for bi in 0..2 {
-        swarm.add_bot(Bot::create(format!("nurtex_{}_{}", si, bi)));
+        bots.push(Bot::create(format!("nurtex_{}_{}", si, bi)));
       }
 
-      cluster.add_swarm(swarm);
+      cluster.add_swarm(bots, JoinDelay::fixed(5000), "localhost", 25565);
     }
 
     cluster.launch();
@@ -243,5 +317,44 @@ mod tests {
       .await;
 
     cluster.wait_finish().await
+  }
+
+  #[tokio::test]
+  async fn test_shared_handlers() -> std::io::Result<()> {
+    let mut handlers = Handlers::new();
+
+    handlers.on_login(async |username| {
+      println!("Бот {} залогинился", username);
+      Ok(())
+    });
+
+    handlers.on_spawn(async |username| {
+      println!("Бот {} заспавнился", username);
+      Ok(())
+    });
+
+    handlers.on_chat(async |username, payload| {
+      println!("Бот {} получил сообщение: {}", username, payload.message);
+      Ok(())
+    });
+
+    handlers.on_disconnect(async |username, payload| {
+      println!("Бот {} отключился в состоянии: {:?}", username, payload.state);
+      Ok(())
+    });
+
+    let mut cluster = Cluster::create().with_handlers(handlers);
+
+    for si in 0..3 {
+      let mut bots = Vec::new();
+
+      for bi in 0..10 {
+        bots.push(Bot::create(format!("nurtex_{}_{}", si, bi)));
+      }
+
+      cluster.add_swarm(bots, JoinDelay::fixed(5000), "localhost", 25565);
+    }
+
+    cluster.launch_and_wait().await
   }
 }

@@ -70,7 +70,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_fixed_delay() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(10).set_join_delay(JoinDelay::fixed(500)).bind("localhost", 25565);
+    let mut swarm = Swarm::create_with_capacity(10).with_join_delay(JoinDelay::fixed(500)).bind("localhost", 25565);
 
     for i in 0..10 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
@@ -86,7 +86,7 @@ mod tests {
   #[tokio::test]
   async fn test_progressive_linear_delay() -> io::Result<()> {
     let mut swarm = Swarm::create_with_capacity(10)
-      .set_join_delay(JoinDelay::progressive_linear(500, 5000))
+      .with_join_delay(JoinDelay::progressive_linear(500, 5000))
       .bind("localhost", 25565);
 
     for i in 0..10 {
@@ -103,7 +103,7 @@ mod tests {
   #[tokio::test]
   async fn test_regressive_linear_delay() -> io::Result<()> {
     let mut swarm = Swarm::create_with_capacity(10)
-      .set_join_delay(JoinDelay::regressive_linear(5000, 500))
+      .with_join_delay(JoinDelay::regressive_linear(5000, 500))
       .bind("localhost", 25565);
 
     for i in 0..10 {
@@ -119,7 +119,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_random_delay() -> io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(10).set_join_delay(JoinDelay::random(100, 3000)).bind("localhost", 25565);
+    let mut swarm = Swarm::create_with_capacity(10).with_join_delay(JoinDelay::random(100, 3000)).bind("localhost", 25565);
 
     for i in 0..10 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
@@ -137,7 +137,7 @@ mod tests {
     let join_delay_fn = |current, total| (500 + total) * current;
 
     let mut swarm = Swarm::create_with_capacity(10)
-      .set_join_delay(JoinDelay::custom(Box::new(join_delay_fn)))
+      .with_join_delay(JoinDelay::custom(Box::new(join_delay_fn)))
       .bind("localhost", 25565);
 
     for i in 0..10 {
@@ -154,7 +154,7 @@ mod tests {
   #[tokio::test]
   async fn test_intermediate_delay() -> io::Result<()> {
     let mut swarm = Swarm::create_with_capacity(10)
-      .set_join_delay(JoinDelay::intermediate(2, 100, 2000))
+      .with_join_delay(JoinDelay::intermediate(2, 100, 2000))
       .bind("localhost", 25565);
 
     for i in 0..10 {

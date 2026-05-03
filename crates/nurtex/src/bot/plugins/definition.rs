@@ -2,12 +2,12 @@ use crate::bot::plugins::{AutoReconnectPlugin, AutoRespawnPlugin};
 
 /// Структура плагинов бота
 #[derive(Clone)]
-pub struct BotPlugins {
+pub struct Plugins {
   pub auto_respawn: AutoRespawnPlugin,
   pub auto_reconnect: AutoReconnectPlugin,
 }
 
-impl Default for BotPlugins {
+impl Default for Plugins {
   fn default() -> Self {
     Self {
       auto_respawn: AutoRespawnPlugin::default(),

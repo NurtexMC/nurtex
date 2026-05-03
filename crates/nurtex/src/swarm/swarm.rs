@@ -6,15 +6,16 @@ use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use crate::bot::Bot;
+use crate::bot::handlers::Handlers;
 use crate::storage::Storage;
 use crate::swarm::{JoinDelay, TargetServer};
 
 /// Рой ботов.  
 ///
 /// Данная структура использует специальную архитектуру,
-/// которая позволяет ботам хранить данные о мире в одном
-/// месте. Из-за этого потребление RAM значительно меньше,
-/// чем при запуске тех же ботов по отдельности.
+/// которая позволяет ботам хранить данные о мире и
+/// обработчики событий в одном месте. Из-за этого потребление
+/// RAM значительно меньше, чем при запуске тех же ботов по отдельности.
 ///
 /// ## Примеры
 ///
@@ -26,7 +27,7 @@ use crate::swarm::{JoinDelay, TargetServer};
 /// async fn main() -> std::io::Result<()> {
 ///   // Создаём рой
 ///   let mut swarm = Swarm::create()
-///     .set_join_delay(JoinDelay::fixed(500))
+///     .with_join_delay(JoinDelay::fixed(500))
 ///     .bind("localhost", 25565);
 ///
 ///   // Добавляем ботов в рой
@@ -70,6 +71,9 @@ pub struct Swarm {
 
   /// Общее хранилище данных
   shared_storage: Arc<Storage>,
+
+  /// Общие обработчики событий
+  shared_handlers: Arc<Handlers>,
 }
 
 impl Swarm {
@@ -81,6 +85,7 @@ impl Swarm {
       join_delay: Arc::new(JoinDelay::fixed(1000)),
       handles: Vec::new(),
       shared_storage: Arc::new(Storage::null()),
+      shared_handlers: Arc::new(Handlers::new()),
     }
   }
 
@@ -92,18 +97,29 @@ impl Swarm {
       join_delay: Arc::new(JoinDelay::fixed(1000)),
       handles: Vec::with_capacity(capacity),
       shared_storage: Arc::new(Storage::null()),
+      shared_handlers: Arc::new(Handlers::new()),
     }
   }
 
-  /// Метод установки общего хранилища
-  pub fn set_shared_storage(mut self, storage: Arc<Storage>) -> Self {
-    self.shared_storage = storage;
+  /// Метод установки задержки подключения
+  pub fn with_join_delay(mut self, join_delay: JoinDelay) -> Self {
+    self.join_delay = Arc::new(join_delay);
     self
   }
 
-  /// Метод установки задержки подключения
-  pub fn set_join_delay(mut self, join_delay: JoinDelay) -> Self {
-    self.join_delay = Arc::new(join_delay);
+  /// Метод установки обработчиков.
+  ///
+  /// **Важное примечание:** Данный метод нужно вызывать строго
+  /// до добавления ботов, иначе боты, добавленные в рой до
+  /// использования этого метода, **не будут** использовать обработчики
+  pub fn with_handlers(mut self, handlers: Handlers) -> Self {
+    self.shared_handlers = Arc::new(handlers);
+    self
+  }
+
+  /// Метод установки общих обработчиков
+  pub fn with_shared_handlers(mut self, handlers: Arc<Handlers>) -> Self {
+    self.shared_handlers = handlers;
     self
   }
 
@@ -162,26 +178,42 @@ impl Swarm {
 
   /// Метод добавления бота в рой
   pub fn add_bot(&mut self, bot: Bot) {
-    self.bots.push(Arc::new(bot.set_storage(Arc::clone(&self.shared_storage))));
+    let swarm_bot = bot
+      .set_shared_storage(Arc::clone(&self.shared_storage))
+      .set_shared_handlers(Arc::clone(&self.shared_handlers));
+
+    self.bots.push(Arc::new(swarm_bot));
   }
 
   /// Метод добавления нескольких ботов в рой
   pub fn add_bots(&mut self, bots: Vec<Bot>) {
     for bot in bots {
-      self.bots.push(Arc::new(bot.set_storage(Arc::clone(&self.shared_storage))));
+      let swarm_bot = bot
+        .set_shared_storage(Arc::clone(&self.shared_storage))
+        .set_shared_handlers(Arc::clone(&self.shared_handlers));
+
+      self.bots.push(Arc::new(swarm_bot));
     }
   }
 
   /// Метод добавления бота в рой (возвращает `Self`)
   pub fn with_bot(mut self, bot: Bot) -> Self {
-    self.bots.push(Arc::new(bot.set_storage(Arc::clone(&self.shared_storage))));
+    let swarm_bot = bot
+      .set_shared_storage(Arc::clone(&self.shared_storage))
+      .set_shared_handlers(Arc::clone(&self.shared_handlers));
+
+    self.bots.push(Arc::new(swarm_bot));
     self
   }
 
   /// Метод добавления нескольких ботов в рой (возвращает `Self`)
   pub fn with_bots(mut self, bots: Vec<Bot>) -> Self {
     for bot in bots {
-      self.bots.push(Arc::new(bot.set_storage(Arc::clone(&self.shared_storage))));
+      let swarm_bot = bot
+        .set_shared_storage(Arc::clone(&self.shared_storage))
+        .set_shared_handlers(Arc::clone(&self.shared_handlers));
+
+      self.bots.push(Arc::new(swarm_bot));
     }
 
     self
@@ -349,6 +381,7 @@ mod tests {
   use std::time::Duration;
 
   use crate::bot::Bot;
+  use crate::bot::handlers::Handlers;
   use crate::swarm::{JoinDelay, Swarm};
 
   #[tokio::test]
@@ -387,7 +420,7 @@ mod tests {
 
     let mut swarm = Swarm::create_with_capacity(10)
       .with_bots(bots)
-      .set_join_delay(JoinDelay::fixed(200))
+      .with_join_delay(JoinDelay::fixed(200))
       .bind("localhost", 25565);
 
     let handle = swarm.quiet_launch();
@@ -404,7 +437,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_wait_handles() -> std::io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(6).set_join_delay(JoinDelay::fixed(200)).bind("localhost", 25565);
+    let mut swarm = Swarm::create_with_capacity(6).with_join_delay(JoinDelay::fixed(200)).bind("localhost", 25565);
 
     for i in 0..6 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
@@ -419,7 +452,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_shared_storage() -> std::io::Result<()> {
-    let mut swarm = Swarm::create_with_capacity(6).set_join_delay(JoinDelay::fixed(200)).bind("localhost", 25565);
+    let mut swarm = Swarm::create_with_capacity(6).with_join_delay(JoinDelay::fixed(200)).bind("localhost", 25565);
 
     for i in 0..6 {
       swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
@@ -438,5 +471,39 @@ mod tests {
     }
 
     Ok(())
+  }
+
+  #[tokio::test]
+  async fn test_shared_handlers() {
+    let mut handlers = Handlers::new();
+
+    handlers.on_login(async |username| {
+      println!("Бот {} залогинился", username);
+      Ok(())
+    });
+
+    handlers.on_spawn(async |username| {
+      println!("Бот {} заспавнился", username);
+      Ok(())
+    });
+
+    handlers.on_chat(async |username, payload| {
+      println!("Бот {} получил сообщение: {}", username, payload.message);
+      Ok(())
+    });
+
+    handlers.on_disconnect(async |username, payload| {
+      println!("Бот {} отключился в состоянии: {:?}", username, payload.state);
+      Ok(())
+    });
+
+    let mut swarm = Swarm::create().with_join_delay(JoinDelay::fixed(50)).with_handlers(handlers).bind("localhost", 25565);
+
+    for i in 0..200 {
+      swarm.add_bot(Bot::create(format!("nurtex_{}", i)));
+    }
+
+    swarm.launch().await;
+    swarm.wait_handles().await
   }
 }

@@ -6,7 +6,7 @@ use nurtex::swarm::{JoinDelay, Swarm};
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
   // Создаём рой
-  let mut swarm = Swarm::create().set_join_delay(JoinDelay::fixed(500)).bind("localhost", 25565);
+  let mut swarm = Swarm::create().with_join_delay(JoinDelay::fixed(500)).bind("localhost", 25565);
 
   // Добавляем ботов в рой
   for i in 0..6 {

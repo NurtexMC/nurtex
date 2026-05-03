@@ -1,26 +1,23 @@
 use std::time::Duration;
 
-use nurtex::Cluster;
-use nurtex::bot::Bot;
-use nurtex::swarm::{JoinDelay, Swarm};
+use nurtex::{Bot, Cluster, JoinDelay};
 
 #[tokio::main]
 async fn main() {
   // Создаём кластер
   let mut cluster = Cluster::create();
 
-  // Создаём цикл на 3 повторения
   for i in 0..3 {
     // Добавляем рои в кластер.
     // Важно: Нужно добавлять рои каждый раз после `shutdown` (выключения кластера)
     for s_ind in 0..6 {
-      let mut swarm = Swarm::create().set_join_delay(JoinDelay::fixed(500)).bind("localhost", 25565);
+      let mut bots = Vec::new();
 
       for b_ind in 0..3 {
-        swarm.add_bot(Bot::create(format!("nurtex_{}_{}", s_ind, b_ind)));
+        bots.push(Bot::create(format!("nurtex_{}_{}", s_ind, b_ind)));
       }
 
-      cluster.add_swarm(swarm);
+      cluster.add_swarm(bots, JoinDelay::fixed(500), "localhost", 25565);
     }
 
     // Запускаем кластер
