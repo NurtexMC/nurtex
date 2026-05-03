@@ -365,7 +365,7 @@ The `nurtex` library contains three different architectures that solve specific 
 - **Swarm:** A system that allows you to create and manage large groups of bots while minimizing RAM usage.
 - **Cluster:** A system that allows you to create and manage clusters of swarms while minimizing RAM usage. This system also implements multi-targeting logic, allowing you to run different swarms on different servers simultaneously.
 
-## Swarm Features
+## Swarm features
 
 - **Convenient management:** Swarm offers a variety of methods for easily managing bots - `add_bot(s)`, `with_bot(s)`, `for_each_parallel`, `for_each_consistent`...
 - **Flexible join delay:** Swarm allows you to set a flexible `JoinDelay` delay between bot joins.
@@ -373,7 +373,7 @@ The `nurtex` library contains three different architectures that solve specific 
 - **Shared handlers:** Swarm allows bots to use shared event handlers, thereby reducing RAM consumption.
 - **Speedometer:** The combination of Swarm and Speedometer allows you to measure bot connection speed.
 
-## Cluster Features
+## Cluster features
 
 - **Convenient management:** Cluster, like Swarm, offers many methods for convenient swarms / bot management.
 - **Multi-targeting:** A cluster allows you to run separate swarms simultaneously on different servers.
@@ -383,13 +383,13 @@ The `nurtex` library contains three different architectures that solve specific 
 ## Comparison
 
 | Parameter | Bot | Swarm | Cluster |
-|----------|-------|---------|
+|-----------|-----|-------|---------|
 | Number of bots | 1 | N (single server) | N x M (different servers) |
 | Target server | 1 | 1 | M |
 | Shared storage | Unique | Yes | No (unique per swarm) |
 | Shared handlers | Unique | Yes | Yes |
 | Shared plugins | Unique | No | No |
-| Memory Usage | Minimal | Low | Medium |
-| Management Complexity | Simple | Medium | Medium |
+| Memory usage | Minimal | Low | Medium |
+| Management complexity | Simple | Medium | Medium |
 | Scalability | Limited | Good | Maximum |
-| API Dependency | No | Yes (bot-specific) | Yes (swarm-specific) |
+| API dependency | No | Yes (bot-specific) | Yes (swarm-specific) |
