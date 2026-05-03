@@ -1,31 +1,25 @@
 use std::time::Duration;
 
-use nurtex::Cluster;
-use nurtex::bot::{Bot, BotChatExt};
-use nurtex::swarm::{JoinDelay, Swarm};
+use nurtex::bot::BotChatExt;
+use nurtex::{Bot, Cluster, JoinDelay};
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-  // Создаём список роев
-  let mut swarms = Vec::new();
+  // Создаём кластер
+  let mut cluster = Cluster::create();
 
-  // Создаём цикл на 3 повторения
   for s_ind in 0..3 {
-    // Создаём рой
-    let mut swarm = Swarm::create().set_join_delay(JoinDelay::fixed(1000)).bind("localhost", 25565);
+    // Создаём список ботов
+    let mut bots = Vec::new();
 
-    // Создаём цикл на 2 повторения
     for b_ind in 0..2 {
-      // Создаём бота и добавляем его в рой
-      swarm.add_bot(Bot::create(format!("nurtex_{}_{}", s_ind, b_ind)));
+      // Создаём бота и добавляем его в список
+      bots.push(Bot::create(format!("nurtex_{}_{}", s_ind, b_ind)));
     }
 
-    // Добавляем рой в список
-    swarms.push(swarm);
+    // Добавляем рой в кластер
+    cluster.add_swarm(bots, JoinDelay::fixed(1000), "localhost", 25565);
   }
-
-  // Создаём кластер и добавляем в него рои
-  let mut cluster = Cluster::create().with_swarms(swarms);
 
   // Запускаем кластер
   cluster.launch();
@@ -39,7 +33,7 @@ async fn main() -> std::io::Result<()> {
     let _ = bot.chat_message(format!("Привет, я {}!", bot.username())).await;
   });
 
-  // Внось ждём немножко
+  // Вновь ждём немножко
   tokio::time::sleep(Duration::from_secs(5)).await;
 
   Ok(())

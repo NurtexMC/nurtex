@@ -8,7 +8,8 @@ use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 use crate::bot::capture::{capture_components, capture_connection};
-use crate::bot::plugins::BotPlugins;
+use crate::bot::handlers::{ChatPayload, DisconnectPayload, Handlers};
+use crate::bot::plugins::Plugins;
 use crate::bot::{BotComponents, BotProfile, ClientInfo};
 use crate::protocol::connection::utils::handle_encryption_request;
 use crate::protocol::connection::{ClientsidePacket, ConnectionState, NurtexConnection};
@@ -63,17 +64,18 @@ pub type PacketWriter = Arc<broadcast::Sender<ServersidePlayPacket>>;
 pub struct Bot {
   pub profile: Arc<RwLock<BotProfile>>,
   pub connection: BotConnection,
+  handle: Option<JoinHandle<core::result::Result<(), std::io::Error>>>,
+  username: String,
   protocol_version: i32,
   connection_timeout: u64,
-  proxy: Arc<RwLock<Option<Proxy>>>,
-  plugins: BotPlugins,
-  username: String,
-  handle: Option<JoinHandle<core::result::Result<(), std::io::Error>>>,
   reader_tx: PacketReader,
   writer_tx: PacketWriter,
+  proxy: Arc<RwLock<Option<Proxy>>>,
+  plugins: Arc<Plugins>,
   speedometer: Option<Arc<Speedometer>>,
   components: Arc<RwLock<BotComponents>>,
   storage: Arc<Storage>,
+  handlers: Arc<Handlers>,
 }
 
 impl Bot {
@@ -103,7 +105,7 @@ impl Bot {
     Self {
       profile: Arc::new(RwLock::new(profile)),
       connection: Arc::new(RwLock::new(None::<NurtexConnection>)),
-      plugins: BotPlugins::default(),
+      plugins: Arc::new(Plugins::default()),
       protocol_version: 774,
       connection_timeout: 14000,
       proxy: Arc::new(RwLock::new(proxy)),
@@ -114,6 +116,7 @@ impl Bot {
       speedometer,
       components: Arc::new(RwLock::new(BotComponents::default())),
       storage: Arc::new(Storage::null()),
+      handlers: Arc::new(Handlers::new()),
     }
   }
 
@@ -173,44 +176,62 @@ impl Bot {
     })
   }
 
-  /// Метод установки информации клиента
-  pub async fn set_information(&self, information: ClientInfo) {
-    self.profile.write().await.information = information;
-  }
-
   /// Метод установки плагинов
-  pub fn set_plugins(mut self, plugins: BotPlugins) -> Self {
-    self.plugins = plugins;
+  pub fn with_plugins(mut self, plugins: Plugins) -> Self {
+    self.plugins = Arc::new(plugins);
     self
   }
 
   /// Метод установки спидометра
-  pub fn set_speedometer(mut self, speedometer: Arc<Speedometer>) -> Self {
+  pub fn with_speedometer(mut self, speedometer: Arc<Speedometer>) -> Self {
     self.speedometer = Some(speedometer);
     self
   }
 
   /// Метод установки версии протокола
-  pub fn set_protocol_version(mut self, protocol_version: i32) -> Self {
+  pub fn with_protocol_version(mut self, protocol_version: i32) -> Self {
     self.protocol_version = protocol_version;
     self
   }
 
   /// Метод установки таймаута подключения
-  pub fn set_connection_timeout(mut self, timeout: u64) -> Self {
+  pub fn with_connection_timeout(mut self, timeout: u64) -> Self {
     self.connection_timeout = timeout;
     self
   }
 
   /// Метод установки прокси
-  pub fn set_proxy(mut self, proxy: Proxy) -> Self {
+  pub fn with_proxy(mut self, proxy: Proxy) -> Self {
     self.proxy = Arc::new(RwLock::new(Some(proxy)));
     self
   }
 
-  /// Метод установки хранилища данных
-  pub fn set_storage(mut self, storage: Arc<Storage>) -> Self {
+  /// Метод установки информации клиента
+  pub fn with_information(self, information: ClientInfo) -> Self {
+    // Здесь почти невозможен исход с ошибкой, поэтому просто игнорируем
+    match self.profile.try_write() {
+      Ok(mut g) => g.information = information,
+      Err(_) => {}
+    }
+
+    self
+  }
+
+  /// Метод установки обработчиков
+  pub fn with_handlers(mut self, handlers: Handlers) -> Self {
+    self.handlers = Arc::new(handlers);
+    self
+  }
+
+  /// Метод установки общего хранилища
+  pub fn set_shared_storage(mut self, storage: Arc<Storage>) -> Self {
     self.storage = storage;
+    self
+  }
+
+  /// Метод установки общих обработчиков
+  pub fn set_shared_handlers(mut self, handlers: Arc<Handlers>) -> Self {
+    self.handlers = handlers;
     self
   }
 
@@ -308,6 +329,7 @@ impl Bot {
     let reader_tx = Arc::clone(&self.reader_tx);
     let writer_tx = Arc::clone(&self.writer_tx);
     let storage = Arc::clone(&self.storage);
+    let handlers = Arc::clone(&self.handlers);
     let protocol_version = self.protocol_version;
     let host = server_host.into();
     let port = server_port;
@@ -327,12 +349,13 @@ impl Bot {
           &speedometer,
           &plugins,
           &reader_tx,
-          Arc::clone(&storage),
+          &storage,
           protocol_version,
           coonnection_timeout,
           &proxy,
           &host,
           port,
+          &handlers,
         )
         .await;
 
@@ -365,14 +388,15 @@ impl Bot {
     profile: &Arc<RwLock<BotProfile>>,
     components: &Arc<RwLock<BotComponents>>,
     speedometer: &Option<Arc<Speedometer>>,
-    plugins: &BotPlugins,
+    plugins: &Plugins,
     reader_tx: &PacketReader,
-    storage: Arc<Storage>,
+    storage: &Arc<Storage>,
     protocol_version: i32,
     coonnection_timeout: u64,
     proxy: &Arc<RwLock<Option<Proxy>>>,
     host: &str,
     port: u16,
+    handlers: &Arc<Handlers>,
   ) -> std::io::Result<()> {
     {
       let mut conn_guard = connection.write().await;
@@ -403,7 +427,6 @@ impl Bot {
     *connection.write().await = Some(conn);
 
     let profile_data = { profile.read().await.clone() };
-    let username_for_speedometer = profile_data.username.clone();
 
     capture_connection(&connection, async |conn| {
       conn
@@ -453,14 +476,34 @@ impl Bot {
           }
         }
         ClientsideLoginPacket::LoginSuccess(p) => {
+          if let Some(handler) = &handlers.on_login_handler {
+            let username_clone = profile_data.username.clone();
+            let handler_clone = Arc::clone(handler);
+
+            tokio::spawn(async move {
+              let _ = handler_clone(username_clone).await;
+            });
+          }
+
           profile.write().await.uuid = p.uuid;
+
           capture_connection(&connection, async |conn| {
             conn.write_login_packet(ServersideLoginPacket::LoginAcknowledged(ServersideLoginAcknowledged)).await
           })
           .await?;
+
           break;
         }
         ClientsideLoginPacket::Disconnect(_p) => {
+          if let Some(handler) = &handlers.on_disconnect_handler {
+            let username_clone = profile_data.username.clone();
+            let handler_clone = Arc::clone(handler);
+
+            tokio::spawn(async move {
+              let _ = handler_clone(username_clone, DisconnectPayload { state: ConnectionState::Login }).await;
+            });
+          }
+
           return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
         }
         _ => {}
@@ -521,6 +564,7 @@ impl Bot {
               .await
           })
           .await?;
+
           break;
         }
         ClientsideConfigurationPacket::AddResourcePack(p) => {
@@ -537,6 +581,21 @@ impl Bot {
           .await?;
         }
         ClientsideConfigurationPacket::Disconnect(_p) => {
+          if let Some(handler) = &handlers.on_disconnect_handler {
+            let username_clone = profile_data.username.clone();
+            let handler_clone = Arc::clone(handler);
+
+            tokio::spawn(async move {
+              let _ = handler_clone(
+                username_clone,
+                DisconnectPayload {
+                  state: ConnectionState::Configuration,
+                },
+              )
+              .await;
+            });
+          }
+
           return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
         }
         _ => {}
@@ -550,7 +609,16 @@ impl Bot {
     .await?;
 
     if let Some(speedometer) = speedometer {
-      speedometer.bot_joined(username_for_speedometer);
+      speedometer.bot_joined(profile_data.username.clone());
+    }
+
+    if let Some(handler) = &handlers.on_spawn_handler {
+      let username_clone = profile_data.username.clone();
+      let handler_clone = Arc::clone(handler);
+
+      tokio::spawn(async move {
+        let _ = handler_clone(username_clone).await;
+      });
     }
 
     let mut packet_rx = {
@@ -659,6 +727,23 @@ impl Bot {
           })
           .await?;
         }
+        ClientsidePlayPacket::PlayerChat(p) => {
+          if let Some(handler) = &handlers.on_chat_handler {
+            let username_clone = profile_data.username.clone();
+            let handler_clone = Arc::clone(handler);
+
+            tokio::spawn(async move {
+              let _ = handler_clone(
+                username_clone,
+                ChatPayload {
+                  message: p.message,
+                  sender_uuid: p.sender_uuid,
+                },
+              )
+              .await;
+            });
+          }
+        }
         ClientsidePlayPacket::Ping(p) => {
           capture_connection(&connection, async |conn| {
             conn
@@ -727,6 +812,15 @@ impl Bot {
           }
         }
         ClientsidePlayPacket::Disconnect(_p) => {
+          if let Some(handler) = &handlers.on_disconnect_handler {
+            let username_clone = profile_data.username.clone();
+            let handler_clone = Arc::clone(handler);
+
+            tokio::spawn(async move {
+              let _ = handler_clone(username_clone, DisconnectPayload { state: ConnectionState::Play }).await;
+            });
+          }
+
           return Err(Error::new(ErrorKind::ConnectionReset, "connection was reset by server"));
         }
         _ => {}
@@ -852,11 +946,12 @@ mod tests {
   use std::io;
   use std::time::Duration;
 
+  use crate::bot::handlers::Handlers;
   use crate::protocol::connection::ClientsidePacket;
   use crate::protocol::packets::play::ClientsidePlayPacket;
   use crate::proxy::Proxy;
 
-  use crate::bot::plugins::{AutoReconnectPlugin, AutoRespawnPlugin, BotPlugins};
+  use crate::bot::plugins::{AutoReconnectPlugin, AutoRespawnPlugin, Plugins};
   use crate::bot::{Bot, BotChatExt};
 
   #[tokio::test]
@@ -884,8 +979,38 @@ mod tests {
   }
 
   #[tokio::test]
+  async fn test_handlers() -> io::Result<()> {
+    let mut handlers = Handlers::new();
+
+    handlers.on_login(async |username| {
+      println!("Бот {} залогинился", username);
+      Ok(())
+    });
+
+    handlers.on_spawn(async |username| {
+      println!("Бот {} заспавнился", username);
+      Ok(())
+    });
+
+    handlers.on_chat(async |username, payload| {
+      println!("Бот {} получил сообщение: {}", username, payload.message);
+      Ok(())
+    });
+
+    handlers.on_disconnect(async |username, payload| {
+      println!("Бот {} отключился в состоянии: {:?}", username, payload.state);
+      Ok(())
+    });
+
+    let mut bot = Bot::create("nurtex_bot").with_handlers(handlers);
+
+    bot.connect("localhost", 25565);
+    bot.wait_handle().await
+  }
+
+  #[tokio::test]
   async fn test_auto_respawn() -> io::Result<()> {
-    let mut bot = Bot::create("nurtex_bot").set_plugins(BotPlugins {
+    let mut bot = Bot::create("nurtex_bot").with_plugins(Plugins {
       auto_respawn: AutoRespawnPlugin {
         enabled: true,
         respawn_delay: 2000,
@@ -899,7 +1024,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_auto_reconnect() -> io::Result<()> {
-    let mut bot = Bot::create("nurtex_bot").set_plugins(BotPlugins {
+    let mut bot = Bot::create("nurtex_bot").with_plugins(Plugins {
       auto_reconnect: AutoReconnectPlugin {
         enabled: true,
         reconnect_delay: 1000,
