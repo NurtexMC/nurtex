@@ -1,20 +1,6 @@
 use nurtex_derive::PacketUnion;
 
-use crate::packets::play::{
-  ClientsideAddResourcePack, ClientsideBlockUpdate, ClientsideChunkBatchFinished, ClientsideChunkBatchStart, ClientsideChunkCacheCenter, 
-  ClientsideChunkCacheRadius, ClientsideClearChat, ClientsideCloseContainer, ClientsideContainerSetContent, ClientsideContainerSetData, 
-  ClientsideContainerSetSlot, ClientsideDamageEvent, ClientsideDisconnect, ClientsideEntityPositionSync, ClientsideExplosion, 
-  ClientsideGameEvent, ClientsideLoadChunkWithLight, ClientsideLightUpdate, ClientsideLogin, ClientsideMoveVehicle, ClientsideOpenContainer,
-  ClientsidePing, ClientsidePingResponse, ClientsidePlayerChat, ClientsidePlayerCombatKill, ClientsidePlayerLookAt, ClientsidePlayerPosition, 
-  ClientsidePlayerRotation, ClientsideRemoveEntities, ClientsideRemoveEntityEffect, ClientsideRemoveResourcePack, ClientsideRotateHead, 
-  ClientsideSectionBlocksUpdate, ClientsideSetCamera, ClientsideSetEntityLink, ClientsideSetEntityVelocity,
-  ClientsideSetExperience, ClientsideSetHealth, ClientsideSetPassengers, ClientsideSpawnEntity, ClientsideSystemChat, ClientsideTransfer, 
-  ClientsideUnloadChunk, ClientsideUpdateEntityPos, ClientsideUpdateEntityPosRot, ClientsideUpdateEntityRot, MultisideKeepAlive, 
-  ServersideAcceptTeleportation, ServersideChatCommand, ServersideChatMessage, ServersideClientCommand, ServersideContainerClick, 
-  ServersideContainerClose, ServersideEditBook, ServersideInteract, ServersideMovePlayerPos, ServersideMovePlayerPosRot, 
-  ServersideMovePlayerRot, ServersideMovePlayerStatusOnly, ServersidePingRequest, ServersidePlayerAction, ServersidePlayerCommand, 
-  ServersidePong, ServersideResourcePackResponse, ServersideSetHeldItem, ServersideSwingArm, ServersideUseItem
-};
+use crate::packets::play::packets::*;
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
 pub enum ClientsidePlayPacket {

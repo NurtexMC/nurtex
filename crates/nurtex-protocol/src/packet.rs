@@ -1,5 +1,3 @@
-use std::io::{self, Cursor, Write};
-
 /// Трейт пакета протокола
 pub trait ProtocolPacket
 where
@@ -9,10 +7,10 @@ where
   fn id(&self) -> u32;
 
   /// Метод чтения данных определённого пакета из буффера
-  fn read(id: u32, buffer: &mut Cursor<&[u8]>) -> Option<Self>;
+  fn read(id: u32, buffer: &mut std::io::Cursor<&[u8]>) -> Option<Self>;
 
   /// Метод записи данных пакета в буффер
-  fn write(&self, buffer: &mut impl Write) -> io::Result<()>;
+  fn write(&self, buffer: &mut impl std::io::Write) -> std::io::Result<()>;
 }
 
 /// Трейт для получения образца пакета

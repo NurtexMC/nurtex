@@ -1,9 +1,6 @@
 use nurtex_derive::PacketUnion;
 
-use crate::packets::login::{
-  ClientsideCookieRequest, ClientsideEncryptionRequest, ClientsideLoginDisconnect, ClientsideLoginSuccess, ClientsidePluginRequest, ClientsideSetCompression,
-  ServersideCookieResponse, ServersideEncryptionResponse, ServersideLoginAcknowledged, ServersideLoginStart, ServersidePluginResponse,
-};
+use crate::packets::login::packets::*;
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
 pub enum ClientsideLoginPacket {
