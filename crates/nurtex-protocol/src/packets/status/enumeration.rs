@@ -1,6 +1,6 @@
 use nurtex_derive::PacketUnion;
 
-use crate::packets::status::{ClientsidePongResponse, ClientsideStatusResponse, ServersidePingRequest, ServersideStatusRequest};
+use crate::packets::status::packets::*;
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
 pub enum ClientsideStatusPacket {

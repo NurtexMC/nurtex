@@ -1,11 +1,6 @@
 use nurtex_derive::PacketUnion;
 
-use crate::packets::configuration::{
-  ClientsideAddResourcePack, ClientsideCookieRequest, ClientsideCustomReportDetails, ClientsideDisconnect, ClientsideFeatureFlags, ClientsideFinishConfiguration,
-  ClientsideKnownPacks, ClientsidePing, ClientsidePluginMessage, ClientsideRegistryData, ClientsideRemoveResourcePack, ClientsideResetChat, ClientsideServerLinks,
-  ClientsideStoreCookie, ClientsideTransfer, ClientsideUpdateTags, MultisideKeepAlive, ServersideAcknowledgeFinishConfiguration, ServersideClientInformation,
-  ServersideCookieResponse, ServersideKnownPacks, ServersidePluginMessage, ServersidePong, ServersideResourcePackResponse,
-};
+use crate::packets::configuration::packets::*;
 
 #[derive(Clone, Debug, PartialEq, PacketUnion)]
 pub enum ClientsideConfigurationPacket {

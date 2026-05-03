@@ -2,11 +2,11 @@
 macro_rules! declare_packet_module {
   ($name:ident) => {
     pub mod $name {
+      mod enumeration;
       mod packets;
-      mod union;
 
+      pub use enumeration::*;
       pub use packets::*;
-      pub use union::*;
     }
   };
 }
