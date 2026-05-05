@@ -113,8 +113,10 @@ impl Bot {
 
       loop {
         let connected = {
-          let conn_guard = connection.read().await;
-          conn_guard.is_some()
+          match tokio::time::timeout(Duration::from_secs(7), connection.read()).await {
+            Ok(g) => g.is_some(),
+            Err(_) => false,
+          }
         };
 
         if !connected {
@@ -124,24 +126,14 @@ impl Bot {
 
         let packet_result = {
           match tokio::time::timeout(Duration::from_secs(14), connection.read()).await {
-            Ok(r) => {
-              if let Some(g) = r.as_ref() {
-                g.read_packet().await
-              } else {
-                None
-              }
-            }
+            Ok(r) => if let Some(g) = r.as_ref() { g.read_packet().await } else { None },
             _ => None,
           }
         };
 
         match packet_result {
-          Some(packet) => {
-            if reader_tx.send(packet).is_err() {
-              break;
-            }
-          }
-          None => tokio::time::sleep(Duration::from_millis(14)).await,
+          Some(packet) => if reader_tx.send(packet).is_err() { break },
+          None => tokio::time::sleep(Duration::from_millis(50)).await,
         }
       }
     })
@@ -155,13 +147,19 @@ impl Bot {
       // Может быть гонка условий с NurtexConnection, поэтому небольшая задержка нужна
       tokio::time::sleep(Duration::from_millis(800)).await;
 
+      let writer_fn = async |packet: ServersidePlayPacket| {
+        if let Some(conn) = connection.read().await.as_ref() {
+          let _ = conn.write_play_packet(packet).await;
+        } else {
+          tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+      };
+
       loop {
         if let Ok(packet) = writer_rx.recv().await {
-          let conn_guard = connection.read().await;
-          if let Some(conn) = conn_guard.as_ref() {
-            let _ = conn.write_play_packet(packet).await;
-          } else {
-            tokio::time::sleep(Duration::from_millis(50)).await;
+          match tokio::time::timeout(Duration::from_secs(14), writer_fn(packet)).await {
+            Ok(_) => continue,
+            Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
           }
         }
       }
@@ -266,12 +264,7 @@ impl Bot {
   pub fn get_writer(&self) -> PacketWriter {
     Arc::clone(&self.writer_tx)
   }
-
-  /// Метод получения копии подключения
-  pub fn get_connection(&self) -> Connection {
-    Arc::clone(&self.connection)
-  }
-
+  
   /// Метод получения хэндла
   pub fn get_handle(&self) -> &Option<JoinHandle<core::result::Result<(), std::io::Error>>> {
     &self.handle
