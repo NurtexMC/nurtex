@@ -1,6 +1,6 @@
+pub mod connection;
 pub mod handlers;
 pub mod plugins;
-pub mod connection;
 pub mod types;
 
 mod bot;
