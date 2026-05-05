@@ -5,7 +5,6 @@ A collection of lightweight Rust libraries for creating Minecraft bots. Async, o
 > [!WARNING]
 > All crates are currently in **early** development. The API may change frequently, and may be unstable, have frequent errors, and have limited functionality. Bugs or features should be reported to the GitHub **issues**.
 
-
 # Focusing
 
 All crates focus on:
@@ -14,7 +13,6 @@ All crates focus on:
 - **Lightweight:** All crates do not carry any extra dependencies or code.
 - **Asynchrony:** Almost all crates rely on an asynchronous code environment.
 - **Simplicity:** We try to make the logic of crates understandable for everyone.
-
 
 # Tasks and Goals
 
@@ -44,7 +42,6 @@ All crates focus on:
 - [ ] Bypass complex bot checks (complete imitation of a real player)
 - [ ] Bypass captchas
 
-
 # Crate map
 
 - [nurtex](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex): A crate for high-level work with the bot / swarm API.
@@ -54,16 +51,22 @@ All crates focus on:
 - [nurtex-protocol](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex-protocol): A crate for creating Minecraft TCP-connections and working with packets.
 - [nurtex-proxy](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex-proxy): A crate for creating connections via SOCKS5 / SOCKS4 proxy.
 
-
 # Documentation
 
 [**Русская**](https://github.com/NurtexMC/nurtex/tree/main/docs/RU.md) | [**English**](https://github.com/NurtexMC/nurtex/tree/main/docs/EN.md)
 
+# Tests
+
+`nurtex` tests on **Kali Linux** (processor: 12th Gen Intel Core i5-12450HX) showed the following results:
+
+- **Total bots:** 300
+- **Peak speed:** 219 b/s (bots per second)
+- **RAM usage:** ~19MB
+- **CPU usage (average):** ~2.4%
 
 # Examples
 
 All current examples can be found here: [browse](https://github.com/NurtexMC/nurtex/tree/main/crates/nurtex/examples)
-
 
 ## Create a bot
 
@@ -92,7 +95,6 @@ async fn main() -> std::io::Result<()> {
 }
 ```
 
-
 ## Create a swarm
 
 In this example, you can see a simple implementation of a bot swarm.
@@ -119,7 +121,6 @@ async fn main() {
     .await
 }
 ```
-
 
 ## Create a cluster
 
