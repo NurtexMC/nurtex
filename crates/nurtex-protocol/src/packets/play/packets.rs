@@ -148,12 +148,7 @@ pub struct ClientsideRemoveEntities {
 }
 
 #[derive(Clone, Debug, PartialEq, Packet)]
-pub struct ClientsideDisconnect {
-  // Я не знаю почему, но TextComponent не подходит здесь под поле `reason`, 
-  // хотя в тех же пакетах в состоянии Configuration / Login это работает
-  // -----------------------------------------------------------------------
-  // pub reason: TextComponent,
-}
+pub struct ClientsideDisconnect;
 
 #[derive(Clone, Debug, PartialEq, Packet)]
 pub struct ClientsidePlayerChat {
