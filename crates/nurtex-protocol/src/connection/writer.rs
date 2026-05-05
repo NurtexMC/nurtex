@@ -10,7 +10,7 @@ use tokio::io::{AsyncWrite, AsyncWriteExt};
 use crate::ProtocolPacket;
 
 /// Функция записи сетевого пакета
-pub async fn write_packet<P, W>(packet: &P, stream: &mut W, compression_threshold: Option<u32>, cipher: &mut Option<AesEncryptor>) -> std::io::Result<()>
+pub async fn write_packet<P, W>(packet: &P, stream: &mut W, compression_threshold: i32, cipher: &mut Option<AesEncryptor>) -> std::io::Result<()>
 where
   P: ProtocolPacket + Debug,
   W: AsyncWrite + Unpin + Send,
@@ -36,7 +36,7 @@ where
 }
 
 /// Функция записи сырого пакета
-pub async fn write_raw_packet<W>(raw_packet: &[u8], stream: &mut W, compression_threshold: Option<u32>, cipher: &mut Option<AesEncryptor>) -> std::io::Result<()>
+pub async fn write_raw_packet<W>(raw_packet: &[u8], stream: &mut W, compression_threshold: i32, cipher: &mut Option<AesEncryptor>) -> std::io::Result<()>
 where
   W: AsyncWrite + Unpin + Send,
 {
@@ -45,11 +45,11 @@ where
 }
 
 /// Функция кодировки байтов в сетевой пакет
-pub fn encode_to_network_packet(raw_packet: &[u8], compression_threshold: Option<u32>, cipher: &mut Option<AesEncryptor>) -> Vec<u8> {
+pub fn encode_to_network_packet(raw_packet: &[u8], compression_threshold: i32, cipher: &mut Option<AesEncryptor>) -> Vec<u8> {
   let mut raw_packet = raw_packet.to_vec();
 
-  if let Some(threshold) = compression_threshold {
-    raw_packet = compression_encoder(&raw_packet, threshold).unwrap();
+  if compression_threshold >= 0 {
+    raw_packet = compression_encoder(&raw_packet, compression_threshold).unwrap();
   }
 
   raw_packet = frame_prepender(raw_packet).unwrap();
@@ -62,7 +62,7 @@ pub fn encode_to_network_packet(raw_packet: &[u8], compression_threshold: Option
 }
 
 /// Функция кодировки с учётом порога сжатия
-pub fn compression_encoder(data: &[u8], compression_threshold: u32) -> Option<Vec<u8>> {
+pub fn compression_encoder(data: &[u8], compression_threshold: i32) -> Option<Vec<u8>> {
   let n = data.len();
 
   if n < compression_threshold as usize {
