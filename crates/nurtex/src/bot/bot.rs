@@ -123,18 +123,19 @@ impl Bot {
         }
 
         let packet_result = {
-          let conn_guard = connection.read().await;
-          if let Some(conn) = conn_guard.as_ref() { conn.try_read_packet() } else { Ok(None) }
+          match tokio::time::timeout(Duration::from_secs(14), connection.read()).await {
+            Ok(r) => if let Some(g) = r.as_ref() { g.read_packet().await } else { None }
+            _ => None
+          }
         };
 
         match packet_result {
-          Ok(Some(packet)) => {
+          Some(packet) => {
             if reader_tx.send(packet).is_err() {
               break;
             }
           }
-          Ok(None) => tokio::time::sleep(Duration::from_millis(10)).await,
-          Err(_) => return,
+          None => tokio::time::sleep(Duration::from_millis(14)).await,
         }
       }
     })
