@@ -8,7 +8,7 @@ use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 use crate::bot::connection::spawn_connection;
-use crate::bot::handlers::{Handlers};
+use crate::bot::handlers::Handlers;
 use crate::bot::plugins::Plugins;
 use crate::bot::types::{Connection, PacketReader, PacketWriter};
 use crate::bot::{BotComponents, BotProfile, ClientInfo};
@@ -124,8 +124,14 @@ impl Bot {
 
         let packet_result = {
           match tokio::time::timeout(Duration::from_secs(14), connection.read()).await {
-            Ok(r) => if let Some(g) = r.as_ref() { g.read_packet().await } else { None }
-            _ => None
+            Ok(r) => {
+              if let Some(g) = r.as_ref() {
+                g.read_packet().await
+              } else {
+                None
+              }
+            }
+            _ => None,
           }
         };
 
