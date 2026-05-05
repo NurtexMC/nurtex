@@ -55,7 +55,7 @@ pub struct Bot {
   connection_timeout: u64,
   reader_tx: PacketReader,
   writer_tx: PacketWriter,
-  proxy: Arc<RwLock<Option<Proxy>>>,
+  proxy: Arc<Option<Proxy>>,
   plugins: Arc<Plugins>,
   speedometer: Option<Arc<Speedometer>>,
   components: Arc<RwLock<BotComponents>>,
@@ -93,7 +93,7 @@ impl Bot {
       plugins: Arc::new(Plugins::default()),
       protocol_version: 774,
       connection_timeout: 14000,
-      proxy: Arc::new(RwLock::new(proxy)),
+      proxy: Arc::new(proxy),
       username: name,
       handle: None,
       reader_tx: Arc::new(reader_tx),
@@ -194,7 +194,7 @@ impl Bot {
 
   /// Метод установки прокси
   pub fn with_proxy(mut self, proxy: Proxy) -> Self {
-    self.proxy = Arc::new(RwLock::new(Some(proxy)));
+    self.proxy = Arc::new(Some(proxy));
     self
   }
 
@@ -243,7 +243,7 @@ impl Bot {
   }
 
   /// Метод получения прокси бота
-  pub fn get_proxy(&self) -> Arc<RwLock<Option<Proxy>>> {
+  pub fn get_proxy(&self) -> Arc<Option<Proxy>> {
     Arc::clone(&self.proxy)
   }
 

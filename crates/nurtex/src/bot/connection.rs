@@ -35,7 +35,7 @@ pub async fn spawn_connection(
   storage: &Arc<Storage>,
   protocol_version: i32,
   coonnection_timeout: u64,
-  proxy: &Arc<RwLock<Option<Proxy>>>,
+  proxy: &Arc<Option<Proxy>>,
   host: &str,
   port: u16,
   handlers: &Arc<Handlers>,
@@ -49,7 +49,7 @@ pub async fn spawn_connection(
     *conn_guard = None;
   }
 
-  let conn = match proxy.read().await.as_ref() {
+  let conn = match proxy.as_ref() {
     Some(proxy) => match tokio::time::timeout(Duration::from_millis(coonnection_timeout), NurtexConnection::new_with_proxy(host, port, proxy)).await {
       Ok(result) => match result {
         Ok(c) => c,
